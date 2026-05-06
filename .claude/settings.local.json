@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(pip install *)",
+      "Skill(update-config)",
+      "Bash(npx tailwindcss *)",
+      "Bash(npm ls *)",
+      "Bash(pip list *)",
+      "Bash(uvicorn app.main:app --host 127.0.0.1 --port 8000)",
+      "Bash(curl -s http://127.0.0.1:8000/api/health)",
+      "Bash(python3 -m json.tool)",
+      "Bash(convert -size 100x100 xc:gray /tmp/test_ultrasound.jpg)",
+      "Bash(python3 -c \"from PIL import Image; Image.new\\('RGB',\\(100,100\\),\\(128,128,128\\)\\).save\\('/tmp/test_ultrasound.jpg'\\)\")",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/predict -F image=@/tmp/test_ultrasound.jpg -F clinical_text=子宫内膜增厚 -F patient_no=P-20260502-001)",
+      "Bash(curl -s http://127.0.0.1:8000/api/cases)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/cases/20260502-1342-10f7/judgment -H 'Content-Type: application/json' -d '{\"final_class\":\"endometrial_cancer\",\"recommendation\":\"biopsy\",\"note\":\"建议活检确认\"}')",
+      "Bash(curl -s http://127.0.0.1:8000/api/cases/20260502-1342-10f7)",
+      "Bash(curl *)",
+      "Bash(python3 -c \"from PIL import Image; Image.new\\('RGB',\\(100,100\\),\\(200,100,100\\)\\).save\\('/tmp/test2.jpg'\\); Image.new\\('RGB',\\(100,100\\),\\(100,200,100\\)\\).save\\('/tmp/test3.jpg'\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(lsof -ti:8000)",
+      "Bash(xargs kill *)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "Bash(lsof -ti:5173)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['case_id']\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(rm -f /Users/sleepy_gyn/Documents/医院超声诊断项目/backend/data/app.db)",
+      "Bash(echo \"PID=$!\")"
+    ]
+  }
+}

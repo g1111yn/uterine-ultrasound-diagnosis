@@ -1,0 +1,10 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sqlalchemy==2.0.35
+pydantic==2.9.2
+pillow==10.4.0
+numpy==1.26.4
+pydicom==2.4.4
+python-multipart==0.0.12
+aiofiles==24.1.0
+reportlab==4.5.0
