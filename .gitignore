@@ -20,12 +20,17 @@ frontend/.vite/
 # Data & runtime artifacts
 backend/data/app.db
 backend/data/app.db-journal
+backend/data/app.db-shm
+backend/data/app.db-wal
+backend/data/app.db.*.bak
 backend/data/uploads/*
 backend/data/gradcam/*
 backend/data/previews/*
+backend/data/batch/*
 !backend/data/uploads/.gitkeep
 !backend/data/gradcam/.gitkeep
 !backend/data/previews/.gitkeep
+!backend/data/batch/.gitkeep
 
 # Model weights (large files, provided externally)
 backend/checkpoints/*

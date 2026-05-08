@@ -96,7 +96,7 @@ export default function History() {
         <table className={tableClass}>
           <thead>
             <tr>
-              {['病例编号', '日期', '模型预测', '医生判断', '一致', '医生', '操作'].map((h) => (
+              {['病例编号', '日期', '图像', '模型预测', '医生判断', '一致', '医生', '操作'].map((h) => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
@@ -104,7 +104,7 @@ export default function History() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center">
+                <td colSpan={8} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <Loader2 className="w-5 h-5 animate-spin mb-2 text-text-tertiary" />
                     <span className="text-text-secondary">加载中...</span>
@@ -122,6 +122,9 @@ export default function History() {
                     </td>
                     <td className="text-[11px] text-text-secondary tabular-nums">
                       {formatDateTime(item.created_at)}
+                    </td>
+                    <td className="text-[11px] text-text-secondary tabular-nums">
+                      图 {item.image_count ?? 1}
                     </td>
                     <td>
                       <ClassBadge
@@ -162,7 +165,7 @@ export default function History() {
               })
             ) : (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center">
+                <td colSpan={8} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <Inbox className="w-6 h-6 mb-2 text-text-tertiary" />
                     <span className="text-text-secondary">暂无数据</span>

@@ -1,20 +1,33 @@
-import numpy as np
-from PIL import Image
-from pathlib import Path
-from datetime import datetime, timezone
+"""Grad-CAM helpers.
+
+Real Grad-CAM generation now happens inside RealInferencer.predict() so the
+overlay can reuse the same image tensor and text embedding that drove the
+prediction. This module keeps a small fallback used when predict() could
+not produce an overlay (e.g. the caller wants to backfill a case).
+"""
+
 import secrets
+from datetime import datetime, timezone
+
+from PIL import Image
+import numpy as np
 
 from app.config import GRADCAM_DIR
 
 
 def generate_placeholder_gradcam(case_id: str) -> str:
-    arr = np.zeros((224, 224, 3), dtype=np.uint8)
-    for y in range(224):
-        for x in range(224):
-            arr[y, x, 0] = int(255 * y / 223)
-            arr[y, x, 1] = int(255 * (1 - y / 223) * x / 223)
-            arr[y, x, 2] = 50
+    """Fallback overlay writer — a simple gradient PNG.
 
+    Kept for backwards compatibility with any pathway that still expects
+    a gradcam file to exist even when RealInferencer did not produce one.
+    Returns a path relative to DATA_DIR.
+    """
+    arr = np.zeros((224, 224, 3), dtype=np.uint8)
+    ys = np.arange(224, dtype=np.float32)[:, None] / 223.0
+    xs = np.arange(224, dtype=np.float32)[None, :] / 223.0
+    arr[..., 0] = (255 * ys).astype(np.uint8)
+    arr[..., 1] = (255 * (1 - ys) * xs).astype(np.uint8)
+    arr[..., 2] = 50
     img = Image.fromarray(arr)
 
     now = datetime.now(timezone.utc)

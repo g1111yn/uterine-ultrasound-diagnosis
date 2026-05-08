@@ -11,6 +11,8 @@ ExecStart=/opt/ultrasound/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 -
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
+Environment=LOG_FORMAT=json
+Environment=COOKIE_SECURE=false
 
 [Install]
 WantedBy=multi-user.target

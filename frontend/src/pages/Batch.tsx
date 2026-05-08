@@ -1,44 +1,11 @@
-import { useState, useCallback, type DragEvent, type ChangeEvent } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Upload, FileUp, Download, Loader2, Pause } from 'lucide-react'
-import { postBatchPredict, getBatchStatus } from '@/api/client'
+import { useCallback, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import { Upload, FileUp, Loader2, Ban, Archive } from 'lucide-react'
+import { postBatchPredict, getBatchStatus, cancelBatch } from '@/api/client'
 import MetricCard from '@/components/MetricCard'
 import ClassBadge, { classFromLabel } from '@/components/ClassBadge'
-import type { BatchStatusResponse, BatchResultItem } from '@/lib/types'
-
-function exportCSV(results: BatchResultItem[]) {
-  const header = '文件名,预测类别,置信度'
-  const rows = results.map(
-    (r) => `${r.filename},${r.predicted_class_zh},${(r.confidence * 100).toFixed(1)}%`,
-  )
-  const csv = [header, ...rows].join('\n')
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `batch-results-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-type StatusStyle = 'done' | 'review' | 'running' | 'queued'
-
-function getStatusLabel(index: number, completed: number): { label: string; style: StatusStyle } {
-  if (index < completed) {
-    return index < completed - 2
-      ? { label: '已分析', style: 'done' }
-      : { label: '已分析·待复核', style: 'review' }
-  }
-  if (index === completed) return { label: '进行中', style: 'running' }
-  return { label: '排队中', style: 'queued' }
-}
-
-const statusClass: Record<StatusStyle, string> = {
-  done: 'bg-success-bg text-success-text',
-  review: 'bg-warning-bg text-warning-text',
-  running: 'bg-info-bg text-info-text',
-  queued: 'bg-bg-tertiary text-text-secondary',
-}
+import type { AggregationStrategy, BatchStatusResponse } from '@/lib/types'
 
 const tableClass =
   'w-full text-xs border-collapse ' +
@@ -46,14 +13,31 @@ const tableClass =
   '[&_td]:px-2.5 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-border ' +
   '[&_tr:last-child_td]:border-b-0'
 
+const strategyOptions: { value: AggregationStrategy; label: string }[] = [
+  { value: 'mean', label: '平均（mean）' },
+  { value: 'max_severity', label: '最严重优先（max_severity）' },
+  { value: 'majority_vote', label: '多数投票（majority_vote）' },
+]
+
+function formatRemaining(ms: number): string {
+  if (!ms || ms <= 0) return '—'
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s} 秒`
+  if (s < 3600) return `${Math.floor(s / 60)} 分 ${s % 60} 秒`
+  return `${Math.floor(s / 3600)} 小时 ${Math.floor((s % 3600) / 60)} 分`
+}
+
 export default function Batch() {
-  const [files, setFiles] = useState<File[]>([])
-  const [manifest, setManifest] = useState<File | null>(null)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [archive, setArchive] = useState<File | null>(null)
+  const [strategy, setStrategy] = useState<AggregationStrategy>('mean')
   const [dragging, setDragging] = useState(false)
   const [jobId, setJobId] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
 
   const submit = useMutation({
-    mutationFn: () => postBatchPredict(files, manifest ?? undefined),
+    mutationFn: () => postBatchPredict(archive!, strategy),
     onSuccess: (data) => setJobId(data.job_id),
   })
 
@@ -63,56 +47,89 @@ export default function Batch() {
     enabled: !!jobId,
     refetchInterval: (query) => {
       const s = query.state.data?.status
-      return s === 'running' || s === 'pending' ? 2000 : false
+      return s === 'running' || s === 'queued' ? 2000 : false
     },
   })
 
   const onDrop = useCallback((e: DragEvent) => {
     e.preventDefault()
     setDragging(false)
-    const dropped = Array.from(e.dataTransfer.files).filter((f) =>
-      f.type.startsWith('image/') ||
-      f.type === 'application/dicom' ||
-      f.name.toLowerCase().endsWith('.dcm'),
-    )
-    setFiles((prev) => [...prev, ...dropped])
+    const f = e.dataTransfer.files[0]
+    if (f && (f.name.toLowerCase().endsWith('.zip') || f.type === 'application/zip')) {
+      setArchive(f)
+    }
   }, [])
 
   const onFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)])
-    }
+    const f = e.target.files?.[0]
+    if (f) setArchive(f)
   }, [])
 
   const resetJob = useCallback(() => {
     setJobId(null)
-    setFiles([])
-    setManifest(null)
+    setArchive(null)
     submit.reset()
   }, [submit])
 
-  const batchData = status.data
-  const isRunning = batchData?.status === 'running' || batchData?.status === 'pending'
-  const isCompleted = batchData?.status === 'completed'
-  const progress = batchData ? (batchData.completed / batchData.total) * 100 : 0
+  const handleCancel = useCallback(async () => {
+    if (!jobId) return
+    if (!confirm('确定取消当前批量任务？已完成的结果会保留。')) return
+    setCancelling(true)
+    try {
+      await cancelBatch(jobId)
+      await queryClient.invalidateQueries({ queryKey: ['batch-status', jobId] })
+    } catch {
+      // 错误由 status 查询展示
+    } finally {
+      setCancelling(false)
+    }
+  }, [jobId, queryClient])
 
-  const normalCount = batchData?.results.filter((r) => r.predicted_class_zh.includes('正常')).length ?? 0
-  const polypCount = batchData?.results.filter((r) => r.predicted_class_zh.includes('息肉')).length ?? 0
-  const cancerCount = batchData?.results.filter((r) => r.predicted_class_zh.includes('内膜癌')).length ?? 0
-  const totalCompleted = batchData?.completed ?? 0
-  const totalItems = batchData?.total ?? 0
+  const data = status.data
+  const isRunning = data?.status === 'running' || data?.status === 'queued'
+  const progressImages = data && data.total_images > 0
+    ? (data.completed_images / data.total_images) * 100
+    : 0
+  const progressPatients = data && data.total_patients > 0
+    ? (data.completed_patients / data.total_patients) * 100
+    : 0
 
-  const pct = (n: number) =>
-    totalCompleted > 0 ? `${Math.round((n / totalCompleted) * 100)}%` : '—'
+  // 从 results 临时统计
+  const completedResults = data?.results.filter((r) => r.predicted_class_zh) ?? []
+  const normalCount = completedResults.filter((r) => r.predicted_class === 'normal').length
+  const polypCount = completedResults.filter((r) => r.predicted_class === 'polyp').length
+  const cancerCount = completedResults.filter((r) => r.predicted_class === 'endometrial_cancer').length
 
   return (
     <div className="max-w-5xl mx-auto">
       {!jobId && (
         <div className="space-y-4">
           <h1 className="text-text-primary">批量推理</h1>
+
           <div className="rounded-lg border border-border bg-bg-primary p-5 space-y-4">
+            <div>
+              <div className="text-xs font-medium text-text-primary mb-2">
+                Step 1 · 上传 ZIP 压缩包
+              </div>
+              <div className="text-[11px] text-text-tertiary leading-relaxed space-y-0.5">
+                <p>ZIP 根目录需包含：</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>
+                    <span className="font-mono">manifest.csv</span>
+                    ：列 <span className="font-mono">patient_no, clinical_text</span>（每个病人一行）
+                  </li>
+                  <li>
+                    为每个病人创建一个以 <span className="font-mono">patient_no</span> 命名的子目录，内含该病人的所有超声图像（jpg/png/bmp/tiff/dcm）
+                  </li>
+                </ul>
+              </div>
+            </div>
+
             <div
-              onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragging(true)
+              }}
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               className={`relative flex flex-col items-center justify-center h-40 rounded-md border border-dashed cursor-pointer transition-colors ${
@@ -121,46 +138,48 @@ export default function Batch() {
                   : 'border-border-secondary bg-bg-secondary hover:bg-bg-tertiary'
               }`}
             >
-              <Upload className="w-6 h-6 mb-2 text-text-tertiary" />
-              <p className="text-xs text-text-secondary">
-                拖拽多个超声图像到此处，或点击选择文件
-              </p>
+              {archive ? (
+                <>
+                  <Archive className="w-6 h-6 mb-2 text-text-tertiary" />
+                  <p className="text-xs text-text-primary">{archive.name}</p>
+                  <p className="text-[11px] mt-1 text-text-tertiary tabular-nums">
+                    {(archive.size / (1024 * 1024)).toFixed(1)} MB · 点击重新选择
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-6 h-6 mb-2 text-text-tertiary" />
+                  <p className="text-xs text-text-secondary">拖拽一个 ZIP 文件到此处，或点击选择</p>
+                  <p className="text-[11px] mt-1 text-text-tertiary">仅支持 .zip 压缩包</p>
+                </>
+              )}
               <input
                 type="file"
-                accept="image/jpeg,image/png,.dcm,application/dicom"
-                multiple
+                accept=".zip,application/zip,application/x-zip-compressed"
                 onChange={onFileChange}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
             </div>
 
-            {files.length > 0 && (
-              <div className="flex items-center gap-3 text-xs text-text-secondary">
-                <span className="tabular-nums">已选择 {files.length} 个文件</span>
-                <button
-                  onClick={() => setFiles([])}
-                  className="text-text-tertiary hover:text-text-primary transition-colors underline"
-                >
-                  清空
-                </button>
-              </div>
-            )}
-
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-text-primary">
-                CSV Manifest <span className="font-normal text-text-tertiary">（可选）</span>
-              </label>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={(e) => setManifest(e.target.files?.[0] ?? null)}
-                className="block w-full text-xs text-text-secondary file:mr-3 file:rounded-md file:border-0 file:bg-bg-tertiary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-text-primary hover:file:bg-border-secondary"
-              />
+              <label className="text-xs font-medium text-text-primary">聚合策略</label>
+              <select
+                value={strategy}
+                onChange={(e) => setStrategy(e.target.value as AggregationStrategy)}
+                className="w-full rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-xs text-text-primary outline-none focus:border-info-border transition-colors"
+              >
+                {strategyOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-text-tertiary">
+                多张图像聚合到病人级预测时使用的策略
+              </p>
             </div>
 
             <button
               onClick={() => submit.mutate()}
-              disabled={files.length === 0 || submit.isPending}
+              disabled={!archive || submit.isPending}
               className="w-full flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-xs font-medium bg-info-text text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               <FileUp className="w-3.5 h-3.5" />
@@ -176,7 +195,7 @@ export default function Batch() {
         </div>
       )}
 
-      {jobId && !batchData && status.isLoading && (
+      {jobId && !data && status.isLoading && (
         <div className="rounded-lg border border-border bg-bg-primary p-12 flex flex-col items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin mb-2 text-text-tertiary" />
           <p className="text-xs text-text-secondary">正在获取任务状态...</p>
@@ -189,54 +208,28 @@ export default function Batch() {
         </div>
       )}
 
-      {batchData && (
+      {data && (
         <>
-          <div className="grid grid-cols-4 gap-3 mb-5">
-            <div className="bg-bg-tertiary rounded-md px-3 py-2.5">
-              <div className="text-[10px] text-text-secondary mb-1 tracking-wide">已处理</div>
-              <div className="text-lg font-medium tabular-nums text-text-primary">
-                {totalCompleted}
-                <span className="text-xs font-normal text-text-tertiary">/{totalItems}</span>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-xs font-medium text-text-primary">
+                Step 2 · 批量推理进度
               </div>
-              <div className="mt-1.5 h-1 rounded-full overflow-hidden bg-border">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${progress}%`,
-                    backgroundColor: 'var(--color-info-text)',
-                  }}
-                />
+              <div className="text-[11px] text-text-tertiary tabular-nums mt-0.5">
+                任务 {data.job_id.slice(0, 10)} · 聚合 {data.aggregation_strategy}
+                {data.current_patient && ` · 当前：${data.current_patient}`}
+                {isRunning && ` · 剩余 ${formatRemaining(data.estimated_remaining_ms)}`}
               </div>
-            </div>
-            <MetricCard label="正常" value={normalCount} sub={pct(normalCount)} color="success" />
-            <MetricCard label="息肉疑似" value={polypCount} sub={pct(polypCount)} color="warning" />
-            <MetricCard
-              label="内膜癌疑似"
-              value={cancerCount}
-              sub={cancerCount > 0 ? `${pct(cancerCount)} · 需重点复核` : pct(cancerCount)}
-              color="danger"
-            />
-          </div>
-
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-xs text-text-primary">
-              <span className="font-medium">当前任务</span>
-              <span className="text-text-secondary"> · {new Date().toLocaleDateString('zh-CN')} 上午门诊</span>
             </div>
             <div className="flex items-center gap-2">
               {isRunning && (
-                <button className="flex items-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary transition-colors">
-                  <Pause className="w-3 h-3" />
-                  暂停
-                </button>
-              )}
-              {isCompleted && batchData.results.length > 0 && (
                 <button
-                  onClick={() => exportCSV(batchData.results)}
-                  className="flex items-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3 py-1.5 text-xs text-text-primary hover:bg-bg-tertiary transition-colors"
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  className="flex items-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary disabled:opacity-50 transition-colors"
                 >
-                  <Download className="w-3 h-3" />
-                  导出 CSV
+                  <Ban className="w-3 h-3" />
+                  {cancelling ? '取消中...' : '取消批量'}
                 </button>
               )}
               <button
@@ -248,40 +241,106 @@ export default function Batch() {
             </div>
           </div>
 
-          {batchData.results.length > 0 && (
+          <div className="grid grid-cols-5 gap-3 mb-5">
+            <div className="bg-bg-tertiary rounded-md px-3 py-2.5">
+              <div className="text-[10px] text-text-secondary mb-1 tracking-wide">病人</div>
+              <div className="text-lg font-medium tabular-nums text-text-primary">
+                {data.completed_patients}
+                <span className="text-xs font-normal text-text-tertiary">/{data.total_patients}</span>
+              </div>
+              <div className="mt-1.5 h-1 rounded-full overflow-hidden bg-border">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${progressPatients}%`,
+                    backgroundColor: 'var(--color-info-text)',
+                  }}
+                />
+              </div>
+            </div>
+            <div className="bg-bg-tertiary rounded-md px-3 py-2.5">
+              <div className="text-[10px] text-text-secondary mb-1 tracking-wide">图像</div>
+              <div className="text-lg font-medium tabular-nums text-text-primary">
+                {data.completed_images}
+                <span className="text-xs font-normal text-text-tertiary">/{data.total_images}</span>
+              </div>
+              <div className="mt-1.5 h-1 rounded-full overflow-hidden bg-border">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${progressImages}%`,
+                    backgroundColor: 'var(--color-info-text)',
+                  }}
+                />
+              </div>
+            </div>
+            <MetricCard label="正常" value={normalCount} color="success" />
+            <MetricCard label="息肉" value={polypCount} color="warning" />
+            <MetricCard label="内膜癌" value={cancerCount} color="danger" />
+          </div>
+
+          {data.status === 'failed' && data.error && (
+            <div className="rounded-md border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text mb-4">
+              任务失败：{data.error}
+            </div>
+          )}
+
+          {data.status === 'cancelled' && (
+            <div className="rounded-md border border-warning-border bg-warning-bg p-2.5 text-xs text-warning-text mb-4">
+              任务已取消
+            </div>
+          )}
+
+          {data.results.length > 0 && (
             <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
               <table className={tableClass}>
                 <thead>
                   <tr>
-                    <th>病例编号</th>
-                    <th>图像</th>
+                    <th>病人编号</th>
+                    <th>图像数</th>
                     <th>模型预测</th>
                     <th>置信度</th>
-                    <th>状态</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {batchData.results.map((r, i) => {
-                    const classType = classFromLabel(r.predicted_class_zh)
-                    const st = getStatusLabel(i, totalCompleted)
+                  {data.results.map((r) => {
+                    const classType = r.predicted_class_zh
+                      ? classFromLabel(r.predicted_class_zh)
+                      : null
                     return (
-                      <tr key={r.case_id}>
+                      <tr key={r.patient_no}>
                         <td className="font-mono text-[11px] tabular-nums text-text-primary">
-                          {r.case_id}
+                          {r.patient_no}
                         </td>
-                        <td className="text-[11px] text-text-secondary">{r.filename}</td>
+                        <td className="text-[11px] text-text-secondary tabular-nums">
+                          {r.image_count}
+                        </td>
                         <td>
-                          <ClassBadge type={classType} label={r.predicted_class_zh} showDot />
+                          {r.predicted_class_zh ? (
+                            <ClassBadge type={classType} label={r.predicted_class_zh} showDot />
+                          ) : r.error ? (
+                            <span className="text-[11px] text-danger-text">{r.error}</span>
+                          ) : (
+                            <span className="text-text-tertiary">—</span>
+                          )}
                         </td>
                         <td className="tabular-nums text-text-primary">
-                          {(r.confidence * 100).toFixed(1)}%
+                          {r.confidence !== null && r.confidence !== undefined
+                            ? `${(r.confidence * 100).toFixed(1)}%`
+                            : '—'}
                         </td>
                         <td>
-                          <span
-                            className={`inline-block text-[10px] px-1.5 py-0.5 rounded-md font-medium ${statusClass[st.style]}`}
-                          >
-                            {st.label}
-                          </span>
+                          {r.case_id ? (
+                            <button
+                              onClick={() => navigate(`/case/${r.case_id}`)}
+                              className="text-[11px] font-medium text-info-text hover:opacity-80 transition-opacity"
+                            >
+                              查看
+                            </button>
+                          ) : (
+                            <span className="text-text-tertiary">—</span>
+                          )}
                         </td>
                       </tr>
                     )
@@ -291,7 +350,7 @@ export default function Batch() {
             </div>
           )}
 
-          {isCompleted && batchData.results.length === 0 && (
+          {data.status === 'completed' && data.results.length === 0 && (
             <div className="rounded-lg border border-border bg-bg-primary p-12 text-center">
               <p className="text-xs text-text-secondary">任务已完成，但没有结果数据</p>
             </div>

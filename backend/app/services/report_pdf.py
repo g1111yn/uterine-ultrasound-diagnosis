@@ -8,6 +8,7 @@ from reportlab.lib.colors import HexColor
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage,
+    PageBreak,
 )
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
@@ -38,14 +39,15 @@ RECOMMENDATION_ZH = {
     "other": "其他",
 }
 
+STRATEGY_ZH = {
+    "mean": "平均",
+    "max_severity": "最严重优先",
+    "majority_vote": "多数投票",
+}
+
 
 def _info_table(rows: list[tuple[str, str]]) -> Table:
-    data = []
-    for label, value in rows:
-        data.append([
-            Paragraph(label, STYLE_LABEL),
-            Paragraph(value, STYLE_VALUE),
-        ])
+    data = [[Paragraph(label, STYLE_LABEL), Paragraph(value, STYLE_VALUE)] for label, value in rows]
     t = Table(data, colWidths=[80, 380])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -59,12 +61,11 @@ def _info_table(rows: list[tuple[str, str]]) -> Table:
 def _prob_bar_table(probs: dict[str, float]) -> Table:
     labels = {"normal": "子宫正常大", "endometrial_cancer": "子宫内膜癌", "polyp": "息肉"}
     data = []
-    for key in ["normal", "endometrial_cancer", "polyp"]:
+    for key in ("normal", "endometrial_cancer", "polyp"):
         val = probs.get(key, 0)
-        pct = f"{val * 100:.1f}%"
         data.append([
             Paragraph(labels[key], STYLE_LABEL),
-            Paragraph(pct, STYLE_VALUE),
+            Paragraph(f"{val * 100:.1f}%", STYLE_VALUE),
         ])
     t = Table(data, colWidths=[120, 80])
     t.setStyle(TableStyle([
@@ -73,6 +74,18 @@ def _prob_bar_table(probs: dict[str, float]) -> Table:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
     return t
+
+
+def _image_source_path(img) -> Path:
+    """Return the path the PDF should render for this CaseImage.
+
+    DICOM files aren't renderable by reportlab; fall back to the PNG preview.
+    """
+    if img.image_format == "dcm" and img.preview_path:
+        p = DATA_DIR / img.preview_path
+        if p.exists():
+            return p
+    return DATA_DIR / img.image_path
 
 
 def _try_image(path: Path, width: float, height: float):
@@ -92,7 +105,17 @@ def _fmt_dt(val) -> str:
     return str(val)
 
 
-def generate_report_pdf(case, prediction, judgment) -> bytes:
+def generate_report_pdf(case, prediction, judgment, images=None) -> bytes:
+    """Render the patient-level report.
+
+    Parameters
+    ----------
+    case       : Case ORM instance
+    prediction : Prediction (aggregated) or None
+    judgment   : Judgment or None
+    images     : ordered list of CaseImage (with per_image_prediction)
+    """
+    images = images or []
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -110,74 +133,85 @@ def generate_report_pdf(case, prediction, judgment) -> bytes:
     story.append(Paragraph("Uterine Ultrasound AI-Assisted Diagnosis Report", STYLE_SUBTITLE))
     story.append(Spacer(1, 8 * mm))
 
-    # Basic info
     story.append(Paragraph("基本信息", STYLE_SECTION))
     info_rows = [
         ("病例编号", case.case_id),
         ("患者编号", case.patient_no or "—"),
         ("检查日期", _fmt_dt(case.created_at)),
         ("医生", case.doctor_id or "—"),
+        ("图像张数", str(len(images))),
     ]
     if case.clinical_text:
-        info_rows.append(("临床信息", case.clinical_text))
+        info_rows.append(("检查所见", case.clinical_text))
     story.append(_info_table(info_rows))
     story.append(Spacer(1, 6 * mm))
 
-    # Images
-    story.append(Paragraph("超声图像", STYLE_SECTION))
-    img_path = DATA_DIR / case.image_path
-    original = _try_image(img_path, 70 * mm, 70 * mm)
-
-    if prediction and prediction.gradcam_path:
-        gradcam_path = DATA_DIR / prediction.gradcam_path
-        gradcam = _try_image(gradcam_path, 70 * mm, 70 * mm)
-        img_row = Table(
-            [[original, Spacer(5 * mm, 0), gradcam]],
-            colWidths=[70 * mm, 5 * mm, 70 * mm],
-        )
-        img_row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-        story.append(img_row)
-        caption = Table(
-            [[Paragraph("原始超声图像", STYLE_SMALL), Spacer(5 * mm, 0), Paragraph("Grad-CAM 热图", STYLE_SMALL)]],
-            colWidths=[70 * mm, 5 * mm, 70 * mm],
-        )
-        story.append(caption)
-    else:
-        story.append(original)
-        story.append(Paragraph("原始超声图像", STYLE_SMALL))
-
-    story.append(Spacer(1, 6 * mm))
-
-    # Prediction
+    # Patient-level prediction
     if prediction:
-        story.append(Paragraph("AI 预测结果", STYLE_SECTION))
-        pred_class_zh = CLASS_ZH.get(prediction.predicted_class, prediction.predicted_class)
+        story.append(Paragraph("AI 病人级综合预测", STYLE_SECTION))
         pred_rows = [
-            ("预测分类", pred_class_zh),
+            ("预测分类", CLASS_ZH.get(prediction.predicted_class, prediction.predicted_class)),
             ("置信度", f"{prediction.confidence * 100:.1f}%"),
+            ("聚合策略", STRATEGY_ZH.get(prediction.aggregation_strategy, prediction.aggregation_strategy)),
+            ("参与图数", str(prediction.image_count)),
             ("模型版本", prediction.model_version),
-            ("推理耗时", f"{prediction.inference_ms} ms"),
         ]
         story.append(_info_table(pred_rows))
         story.append(Spacer(1, 3 * mm))
-        story.append(Paragraph("分类概率分布", STYLE_LABEL))
+        story.append(Paragraph("病人级概率分布", STYLE_LABEL))
         story.append(Spacer(1, 2 * mm))
-        probs = {
+        story.append(_prob_bar_table({
             "normal": prediction.prob_normal,
             "endometrial_cancer": prediction.prob_cancer,
             "polyp": prediction.prob_polyp,
-        }
-        story.append(_prob_bar_table(probs))
+        }))
         story.append(Spacer(1, 6 * mm))
+
+    # Per-image section
+    if images:
+        story.append(Paragraph("各图像明细", STYLE_SECTION))
+        for img in images:
+            pip = img.per_image_prediction
+            original = _try_image(_image_source_path(img), 70 * mm, 70 * mm)
+            if pip and pip.gradcam_path:
+                grad = _try_image(DATA_DIR / pip.gradcam_path, 70 * mm, 70 * mm)
+                img_row = Table(
+                    [[original, Spacer(5 * mm, 0), grad]],
+                    colWidths=[70 * mm, 5 * mm, 70 * mm],
+                )
+                img_row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
+                caption = Table(
+                    [[Paragraph(f"图 {img.sequence} · 原图", STYLE_SMALL),
+                      Spacer(5 * mm, 0),
+                      Paragraph(f"图 {img.sequence} · Grad-CAM", STYLE_SMALL)]],
+                    colWidths=[70 * mm, 5 * mm, 70 * mm],
+                )
+                story.append(img_row)
+                story.append(caption)
+            else:
+                story.append(original)
+                story.append(Paragraph(f"图 {img.sequence}", STYLE_SMALL))
+
+            if pip:
+                story.append(Spacer(1, 3 * mm))
+                story.append(_info_table([
+                    ("预测分类", CLASS_ZH.get(pip.predicted_class, pip.predicted_class)),
+                    ("置信度", f"{pip.confidence * 100:.1f}%"),
+                    ("推理耗时", f"{pip.inference_ms} ms"),
+                ]))
+                story.append(_prob_bar_table({
+                    "normal": pip.prob_normal,
+                    "endometrial_cancer": pip.prob_cancer,
+                    "polyp": pip.prob_polyp,
+                }))
+            story.append(Spacer(1, 6 * mm))
 
     # Judgment
     story.append(Paragraph("医生判断", STYLE_SECTION))
     if judgment:
-        final_zh = CLASS_ZH.get(judgment.final_class, judgment.final_class)
-        rec_zh = RECOMMENDATION_ZH.get(judgment.recommendation, judgment.recommendation)
         judg_rows = [
-            ("最终诊断", final_zh),
-            ("处置建议", rec_zh),
+            ("最终诊断", CLASS_ZH.get(judgment.final_class, judgment.final_class)),
+            ("处置建议", RECOMMENDATION_ZH.get(judgment.recommendation, judgment.recommendation)),
             ("判断时间", _fmt_dt(judgment.judged_at)),
             ("医生", judgment.doctor_id or "—"),
         ]
@@ -187,20 +221,18 @@ def generate_report_pdf(case, prediction, judgment) -> bytes:
     else:
         story.append(Paragraph("尚未提交医生判断", STYLE_BODY))
 
-    # Signature
     story.append(Spacer(1, 20 * mm))
-    sign_data = [
-        [Paragraph("诊断医生签名：", STYLE_BODY), Paragraph("日期：", STYLE_BODY)],
-        [Paragraph("_" * 30, STYLE_BODY), Paragraph("_" * 20, STYLE_BODY)],
-    ]
-    sign_table = Table(sign_data, colWidths=[250, 210])
+    sign_table = Table(
+        [[Paragraph("诊断医生签名：", STYLE_BODY), Paragraph("日期：", STYLE_BODY)],
+         [Paragraph("_" * 30, STYLE_BODY), Paragraph("_" * 20, STYLE_BODY)]],
+        colWidths=[250, 210],
+    )
     sign_table.setStyle(TableStyle([
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
     story.append(sign_table)
 
-    # Disclaimer
     story.append(Spacer(1, 10 * mm))
     story.append(Paragraph(
         "本报告由子宫超声辅助诊断系统生成，AI 预测结果仅供参考，最终诊断以医生判断为准。",

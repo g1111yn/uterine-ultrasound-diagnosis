@@ -8,6 +8,47 @@ import numpy as np
 from app.config import UPLOAD_DIR, PREVIEW_DIR
 
 
+# Extensions we accept on upload. Kept here so ``sniff_image_mime`` and the
+# route handler agree on the whitelist.
+_EXT_TO_MIME = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "bmp": "image/bmp",
+    "tif": "image/tiff",
+    "tiff": "image/tiff",
+    "dcm": "application/dicom",
+}
+
+
+def sniff_image_mime(content: bytes, filename: str) -> str:
+    """Best-effort MIME detection: real bytes first, extension as fallback.
+
+    - DICOM is detected via the 132-byte preamble + ``DICM`` magic (``filetype``
+      doesn't know the DICOM format).
+    - Everything else goes through the ``filetype`` library, which reads the
+      first few bytes; unknown content falls back to the mapping from the
+      filename extension.
+    - If nothing matches, returns ``"application/octet-stream"`` so the caller
+      can reject the upload safely.
+    """
+    if len(content) >= 132 and content[128:132] == b"DICM":
+        return "application/dicom"
+
+    try:
+        import filetype  # type: ignore
+        guess = filetype.guess(content)
+        if guess is not None and guess.mime:
+            return guess.mime
+    except Exception:
+        # ``filetype`` is pure Python and should not fail, but we keep this
+        # defensive: if anything goes wrong we continue to the ext fallback.
+        pass
+
+    ext = Path(filename or "").suffix.lower().lstrip(".")
+    return _EXT_TO_MIME.get(ext, "application/octet-stream")
+
+
 def save_upload(content: bytes, filename: str) -> tuple[str, str]:
     now = datetime.now(timezone.utc)
     date_dir = now.strftime("%Y/%m/%d")
