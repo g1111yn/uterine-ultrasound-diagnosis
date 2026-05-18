@@ -34,7 +34,7 @@ from app.utils.image import save_upload_with_preview, sniff_image_mime
 
 router = APIRouter()
 
-MAX_IMAGES_PER_CASE = int(os.getenv("MAX_IMAGES_PER_CASE", "10"))
+MAX_IMAGES_PER_CASE = int(os.getenv("MAX_IMAGES_PER_CASE", "30"))
 MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", str(50 * 1024 * 1024)))  # 50 MB
 ALLOWED_EXTS = {"jpg", "jpeg", "png", "bmp", "tif", "tiff", "dcm"}
 ALLOWED_MIMES = {

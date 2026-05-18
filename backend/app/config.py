@@ -12,7 +12,7 @@ BATCH_DIR = DATA_DIR / "batch"
 
 DATABASE_URL = f"sqlite:///{BASE_DIR / 'data' / 'app.db'}"
 
-MODEL_VERSION = "resnet18-bert-chinese-v1-mini"
+MODEL_VERSION = "efficientnet-b3-medbert-v2-fold3"
 
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
@@ -25,14 +25,17 @@ CORS_ORIGINS = [
 for d in (UPLOAD_DIR, PREVIEW_DIR, GRADCAM_DIR, CHECKPOINT_DIR, BATCH_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
-HOME = Path(os.path.expanduser("~"))
 MODEL_CKPT_PATH = Path(os.getenv(
     "MODEL_CKPT_PATH",
-    HOME / "Documents" / "超声" / "checkpoints" / "bert-base_fold1_best.pth"
+    CHECKPOINT_DIR / "best_single_fold3.pth",
 ))
+# 5 折集成的权重路径（默认空，启用时填逗号分隔的路径列表）
+MODEL_FOLD_PATHS = [
+    p.strip() for p in os.getenv("MODEL_FOLD_PATHS", "").split(",") if p.strip()
+]
 BERT_PATH = Path(os.getenv(
     "BERT_PATH",
-    HOME / "Documents" / "超声" / "models" / "tiansz" / "bert-base-chinese"
+    BASE_DIR / "models" / "nlp_corom_sentence-embedding_chinese-base-medical",
 ))
 
 

@@ -36,6 +36,9 @@ backend/data/batch/*
 backend/checkpoints/*
 !backend/checkpoints/.gitkeep
 
+# BERT model directory (~400MB, provided externally)
+backend/models/
+
 # Logs
 *.log
 logs/
