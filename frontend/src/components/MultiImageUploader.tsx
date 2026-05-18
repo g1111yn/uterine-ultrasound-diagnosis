@@ -29,7 +29,7 @@ function formatSize(bytes: number): string {
 export default function MultiImageUploader({
   files,
   onChange,
-  maxCount = 10,
+  maxCount = 30,
   maxSizeMB = 50,
 }: Props) {
   const [dragging, setDragging] = useState(false)

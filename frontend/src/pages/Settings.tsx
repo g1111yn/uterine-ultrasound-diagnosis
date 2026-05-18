@@ -118,9 +118,16 @@ export default function Settings() {
 
       <div className="rounded-lg border border-border bg-bg-primary p-5 mt-4 space-y-2">
         <h2 className="text-xs font-medium text-text-primary">关于</h2>
-        <div className="text-xs space-y-1 text-text-secondary">
-          <p>子宫超声辅助诊断系统 v0.3</p>
-          <p>基于 ResNet-18 + ERNIE-Health 多模态融合模型</p>
+        <div className="text-xs space-y-1 text-text-secondary leading-relaxed">
+          <p>子宫超声辅助诊断系统 v2</p>
+          <p>
+            基于 EfficientNet-B3 + 阿里达摩院医学 BERT 的图像主导门控融合模型，
+            训练数据 10,587 病人 / 196,255 张超声图像（5 折交叉验证）
+          </p>
+          <p>
+            病人级 ACC 0.849（完整诊断模式）/ 0.805（纯图像筛查），
+            病人级 AUC 0.949 / 0.934
+          </p>
           <p>仅供辅助诊断参考，最终诊断以医生判断为准</p>
         </div>
       </div>

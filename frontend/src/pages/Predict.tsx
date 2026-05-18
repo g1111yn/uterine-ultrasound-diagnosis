@@ -156,13 +156,30 @@ export default function Predict() {
           <MultiImageUploader files={files} onChange={setFiles} />
 
           <div className="space-y-1.5">
-            <label className="text-xs text-text-secondary">检查所见（临床描述）</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-text-secondary">检查所见（临床描述）</label>
+              {clinicalText.trim() ? (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-info-bg text-info-text"
+                  title="文本+图像联合诊断 · 病人级 ACC 0.849 / AUC 0.949"
+                >
+                  完整诊断模式
+                </span>
+              ) : (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-tertiary"
+                  title="不填文本时模型仅基于图像推理 · 病人级 ACC 0.805 / AUC 0.934"
+                >
+                  纯图像筛查
+                </span>
+              )}
+            </div>
             <textarea
               value={clinicalText}
               onChange={(e) => setClinicalText(e.target.value)}
               rows={4}
               className={`${inputClass} resize-none`}
-              placeholder="请输入检查所见，如：绝经后阴道出血，子宫内膜增厚..."
+              placeholder="选填。留空将以纯图像模式推理，填写后准确率更高"
               disabled={!!submission}
             />
           </div>
