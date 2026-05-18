@@ -38,6 +38,8 @@ export default function Predict() {
   const [clinicalText, setClinicalText] = useState('')
   const [patientNo, setPatientNo] = useState('')
   const [submission, setSubmission] = useState<PredictResponse | null>(null)
+  const [submittedAt, setSubmittedAt] = useState<number | null>(null)
+  const [elapsed, setElapsed] = useState(0)
   const idempKeyRef = useRef<string | null>(null)
 
   const predict = useMutation({
@@ -89,6 +91,8 @@ export default function Predict() {
   const handleSubmit = () => {
     if (!files.length || !patientNo.trim()) return
     idempKeyRef.current = crypto.randomUUID()
+    setSubmittedAt(Date.now())
+    setElapsed(0)
     predict.mutate()
   }
 
@@ -97,6 +101,8 @@ export default function Predict() {
     setClinicalText('')
     setPatientNo('')
     setSubmission(null)
+    setSubmittedAt(null)
+    setElapsed(0)
     idempKeyRef.current = null
     predict.reset()
     judgment.reset()
@@ -106,33 +112,39 @@ export default function Predict() {
   const waiting = submission && !taskDone && !taskQuery.error
   const failed = taskStatus === 'failed' || !!taskQuery.error
 
-  // 不确定进度条动画（伪进度）
-  const [progressTick, setProgressTick] = useState(0)
+  // 已用时间计时器
   useEffect(() => {
-    if (!waiting) return
-    const id = setInterval(() => setProgressTick((t) => (t + 1) % 100), 120)
+    if (!waiting || !submittedAt) return
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - submittedAt) / 1000))
+    }, 1000)
     return () => clearInterval(id)
-  }, [waiting])
+  }, [waiting, submittedAt])
 
   const detail = caseQuery.data
   const pred = detail?.prediction ?? null
 
+  // 预估总耗时：每张图约 2 秒（含 Grad-CAM），加 1 秒 BERT 编码
+  const imageCount = submission?.image_count ?? files.length
+  const estimatedTotalSec = Math.max(3, imageCount * 2 + 1)
+  const progressPct = Math.min(95, (elapsed / estimatedTotalSec) * 100)
+
   const waitingText = useMemo(() => {
-    if (!taskQuery.data) return '提交中...'
+    if (!taskQuery.data) return '正在提交，请稍候...'
     const { status, queue_position, estimated_wait_ms } = taskQuery.data
     if (status === 'queued') {
       const ahead = Math.max(0, queue_position - 1)
-      return `队列中，前方还有 ${ahead} 个任务，预估 ${formatWaitMs(estimated_wait_ms)}`
+      if (ahead === 0) return '即将开始分析...'
+      return `队列中，前方还有 ${ahead} 个任务，预估等待 ${formatWaitMs(estimated_wait_ms)}`
     }
     if (status === 'running') {
-      const n = submission?.image_count ?? files.length
-      return `分析中，共 ${n} 张图像`
+      return `正在分析 ${imageCount} 张图像 · 已用 ${elapsed} 秒 / 预估 ${estimatedTotalSec} 秒`
     }
     if (status === 'failed') {
       return `分析失败：${taskQuery.data.error ?? '未知错误'}`
     }
     return '处理中...'
-  }, [taskQuery.data, submission, files.length])
+  }, [taskQuery.data, imageCount, elapsed, estimatedTotalSec])
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -231,20 +243,23 @@ export default function Predict() {
                 <Loader2 className="w-4 h-4 animate-spin text-text-secondary" />
                 <span className="text-xs font-medium text-text-primary">{waitingText}</span>
               </div>
-              <div className="h-1 rounded-full overflow-hidden bg-border relative">
+              <div className="h-1 rounded-full overflow-hidden bg-border">
                 <div
-                  className="absolute h-full rounded-full transition-all"
+                  className="h-full rounded-full transition-all duration-500"
                   style={{
-                    width: '28%',
-                    left: `${progressTick}%`,
+                    width: `${progressPct}%`,
                     backgroundColor: 'var(--color-info-text)',
-                    opacity: 0.7,
                   }}
                 />
               </div>
-              <p className="text-[11px] text-text-tertiary">
-                任务 {submission?.task_id.slice(0, 8)} · 请勿刷新页面
-              </p>
+              <div className="text-[11px] text-text-tertiary space-y-0.5 leading-relaxed">
+                <p>
+                  任务 {submission?.task_id.slice(0, 8)} · CPU 推理每张图约 1-2 秒（含 Grad-CAM 热力图）
+                </p>
+                <p>
+                  服务器首次推理需加载 BERT 模型，可能比正常情况多 3-5 秒。请勿刷新页面，结果会在分析完成后自动展示。
+                </p>
+              </div>
             </div>
           )}
 
