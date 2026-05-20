@@ -222,6 +222,7 @@ async def get_case(case_id: str, db: Session = Depends(get_db), _user: User = De
     return CaseDetailResponse(
         case_id=case.case_id,
         patient_no=case.patient_no,
+        check_project=case.check_project or "",
         clinical_text=case.clinical_text,
         doctor_id=case.doctor_id,
         created_at=case.created_at,

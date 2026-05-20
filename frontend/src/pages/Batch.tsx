@@ -116,8 +116,11 @@ export default function Batch() {
                 <ul className="list-disc pl-4 space-y-0.5">
                   <li>
                     <span className="font-mono">manifest.csv</span>
-                    ：列 <span className="font-mono">patient_no, clinical_text</span>
-                    （每个病人一行，<span className="text-text-secondary">clinical_text 可留空，留空将以纯图像模式推理</span>）
+                    ：必填列 <span className="font-mono">patient_no, clinical_text</span>
+                    ；可选列 <span className="font-mono">check_project</span>（检查方式，缺省为「经阴道三维超声」）
+                    <div className="text-text-tertiary mt-0.5">
+                      每个病人一行，clinical_text 可留空，留空将以纯图像模式推理
+                    </div>
                   </li>
                   <li>
                     为每个病人创建一个以 <span className="font-mono">patient_no</span> 命名的子目录，内含该病人的所有超声图像（jpg/png/bmp/tiff/dcm）

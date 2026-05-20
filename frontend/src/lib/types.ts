@@ -151,6 +151,7 @@ export interface CaseListResponse {
 export interface CaseDetail {
   case_id: string
   patient_no: string
+  check_project: string
   clinical_text: string
   doctor_id: string
   created_at: string

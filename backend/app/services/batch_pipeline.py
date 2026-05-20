@@ -90,10 +90,14 @@ def _safe_extract_zip(archive: bytes, dest: Path) -> None:
         zf.extractall(dest)
 
 
-def _parse_manifest(path: Path) -> dict[str, str]:
-    """manifest.csv columns: patient_no, clinical_text.
+DEFAULT_CHECK_PROJECT = "经阴道三维超声"
 
-    Returns patient_no -> clinical_text mapping.
+
+def _parse_manifest(path: Path) -> dict[str, tuple[str, str]]:
+    """manifest.csv columns: patient_no, clinical_text, [check_project].
+
+    Returns patient_no -> (check_project, clinical_text) mapping.
+    check_project 缺省为 DEFAULT_CHECK_PROJECT，与单例推理默认值一致。
     """
     if not path.exists():
         raise BatchError("NO_MANIFEST", "ZIP 内缺少 manifest.csv")
@@ -108,14 +112,15 @@ def _parse_manifest(path: Path) -> dict[str, str]:
     if "clinical_text" not in fields:
         raise BatchError("MANIFEST_MISSING_COLUMN", "manifest.csv 必须包含 clinical_text 列")
 
-    out: dict[str, str] = {}
+    out: dict[str, tuple[str, str]] = {}
     for row in reader:
         pno = (row.get("patient_no") or "").strip()
         txt = (row.get("clinical_text") or "").strip()
+        proj = (row.get("check_project") or "").strip() or DEFAULT_CHECK_PROJECT
         if len(txt) > 10000:
             txt = txt[:10000]
         if pno:
-            out[pno] = txt
+            out[pno] = (proj, txt)
     if not out:
         raise BatchError("MANIFEST_EMPTY", "manifest.csv 中没有有效的病人记录")
     return out
@@ -199,18 +204,18 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
             patients = _collect_patient_images(job_dir)
 
             # Only keep patients that exist in manifest AND have images.
-            active_patients: list[tuple[str, str, list[Path]]] = []
-            for pno, clinical_text in manifest.items():
+            active_patients: list[tuple[str, str, str, list[Path]]] = []
+            for pno, (check_project, clinical_text) in manifest.items():
                 imgs = patients.get(pno)
                 if imgs:
-                    active_patients.append((pno, clinical_text, imgs))
+                    active_patients.append((pno, check_project, clinical_text, imgs))
 
             if not active_patients:
                 shutil.rmtree(job_dir, ignore_errors=True)
                 raise BatchError("NO_PATIENTS", "manifest.csv 中的病人都没有找到对应图像文件夹。")
 
             strategy = get_strategy(aggregation_strategy)
-            total_images = sum(len(imgs) for _, _, imgs in active_patients)
+            total_images = sum(len(imgs) for _, _, _, imgs in active_patients)
 
             job = BatchJob(
                 job_id=job_id,
@@ -225,11 +230,12 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
             db.flush()
 
             # Persist Case + CaseImage for each patient; enqueue per-image tasks.
-            for pno, clinical_text, imgs in active_patients:
+            for pno, check_project, clinical_text, imgs in active_patients:
                 case_id = generate_case_id()
                 case = Case(
                     case_id=case_id,
                     patient_no=pno,
+                    check_project=check_project,
                     clinical_text=clinical_text,
                     doctor_id=user_id,
                     batch_job_id=job_id,
@@ -266,6 +272,7 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                 _enqueue_patient_inference(
                     job_id=job_id,
                     case_id=case_id,
+                    check_project=check_project,
                     clinical_text=clinical_text,
                     images=[(ci, ci_path_bytes(ci)) for ci in image_rows],
                     strategy_name=strategy.name,
@@ -294,6 +301,7 @@ def _enqueue_patient_inference(
     *,
     job_id: str,
     case_id: str,
+    check_project: str,
     clinical_text: str,
     images: list[tuple[CaseImage, bytes]],
     strategy_name: str,
@@ -321,7 +329,8 @@ def _enqueue_patient_inference(
             tid,
             priority=BATCH_PRIORITY,
             image_bytes_getter=getter,
-            clinical_text=clinical_text,
+            check_project=check_project,
+            check_seen=clinical_text,
             on_complete=child_cb,
         )
 

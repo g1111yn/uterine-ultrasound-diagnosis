@@ -99,6 +99,9 @@ class Case(Base):
 
     case_id = Column(String, primary_key=True)
     patient_no = Column(String, index=True, default="")
+    # check_project = 检查方式（如「经阴道三维超声」），clinical_text = 检查所见
+    # BERT 实际输入是两者拼接后的整段文本，详见 app.utils.text.build_clinical_text
+    check_project = Column(String, default="")
     clinical_text = Column(Text, default="")
     doctor_id = Column(String, ForeignKey("users.user_id"), index=True, nullable=False)
     batch_job_id = Column(String, ForeignKey("batch_jobs.job_id"), nullable=True, index=True)
@@ -231,7 +234,17 @@ def init_schema():
     with engine.connect() as conn:
         conn.execute(text("PRAGMA journal_mode=WAL"))
         conn.commit()
+    _ensure_legacy_columns()
     _seed_default_user()
+
+
+def _ensure_legacy_columns():
+    """V2 给 cases 加了 check_project 列；老部署如果先建了 V1 表，
+    SQLAlchemy create_all 不会自动 ALTER。这里幂等地补一次。"""
+    with engine.begin() as conn:
+        cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(cases)")}
+        if "check_project" not in cols:
+            conn.exec_driver_sql("ALTER TABLE cases ADD COLUMN check_project VARCHAR DEFAULT ''")
 
 
 def _seed_default_user():

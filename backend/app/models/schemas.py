@@ -149,6 +149,7 @@ class CaseDetailResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
     case_id: str
     patient_no: str
+    check_project: str = ""
     clinical_text: str
     doctor_id: str
     created_at: datetime

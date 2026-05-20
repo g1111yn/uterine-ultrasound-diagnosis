@@ -141,6 +141,8 @@ def generate_report_pdf(case, prediction, judgment, images=None) -> bytes:
         ("医生", case.doctor_id or "—"),
         ("图像张数", str(len(images))),
     ]
+    if case.check_project:
+        info_rows.append(("检查方式", case.check_project))
     if case.clinical_text:
         info_rows.append(("检查所见", case.clinical_text))
     story.append(_info_table(info_rows))

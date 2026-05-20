@@ -18,6 +18,17 @@ import type { JudgmentRequest, PredictResponse, TaskStatusResponse } from '@/lib
 const inputClass =
   'w-full rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-xs text-text-primary outline-none focus:border-info-border transition-colors'
 
+// 与训练数据中检查项目分布一致；BERT 输入会再做清洗规范化
+const CHECK_PROJECT_OPTIONS = [
+  '经阴道三维超声',
+  '经阴道超声',
+  '经腹三维超声',
+  '经腹超声',
+  '经会阴三维超声',
+] as const
+
+const DEFAULT_CHECK_PROJECT = '经阴道三维超声'
+
 const classTypeMap: Record<string, 'normal' | 'endometrial_cancer' | 'polyp'> = {
   normal: 'normal',
   endometrial_cancer: 'endometrial_cancer',
@@ -36,6 +47,7 @@ export default function Predict() {
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<File[]>([])
   const [clinicalText, setClinicalText] = useState('')
+  const [checkProject, setCheckProject] = useState<string>(DEFAULT_CHECK_PROJECT)
   const [patientNo, setPatientNo] = useState('')
   const [submission, setSubmission] = useState<PredictResponse | null>(null)
   const [submittedAt, setSubmittedAt] = useState<number | null>(null)
@@ -50,6 +62,7 @@ export default function Predict() {
       return postPredict({
         images: files,
         clinical_text: clinicalText,
+        check_project: checkProject,
         patient_no: patientNo,
         idempotency_key: idempKeyRef.current,
       })
@@ -99,6 +112,7 @@ export default function Predict() {
   const handleClear = useCallback(() => {
     setFiles([])
     setClinicalText('')
+    setCheckProject(DEFAULT_CHECK_PROJECT)
     setPatientNo('')
     setSubmission(null)
     setSubmittedAt(null)
@@ -163,6 +177,22 @@ export default function Predict() {
               placeholder="20260502-1138"
               disabled={!!submission}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-text-secondary">检查方式</label>
+            <select
+              value={checkProject}
+              onChange={(e) => setCheckProject(e.target.value)}
+              className={inputClass}
+              disabled={!!submission}
+            >
+              {CHECK_PROJECT_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
 
           <MultiImageUploader files={files} onChange={setFiles} />

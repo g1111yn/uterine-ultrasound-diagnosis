@@ -44,7 +44,8 @@ class TaskRecord:
     case_id: Optional[str] = None
     child_task_ids: list[str] = field(default_factory=list)
     image_bytes_getter: Optional[Callable[[], bytes]] = None
-    clinical_text: str = ""
+    check_project: str = ""
+    check_seen: str = ""
     on_complete: Optional[Callable[["TaskRecord"], None]] = None
 
 
@@ -85,7 +86,8 @@ class InferenceQueue:
         *,
         priority: int,
         image_bytes_getter: Callable[[], bytes],
-        clinical_text: str,
+        check_project: str = "",
+        check_seen: str = "",
         on_complete: Optional[Callable[[TaskRecord], None]] = None,
     ) -> TaskRecord:
         rec = TaskRecord(
@@ -93,7 +95,8 @@ class InferenceQueue:
             kind="per_image",
             priority=priority,
             image_bytes_getter=image_bytes_getter,
-            clinical_text=clinical_text,
+            check_project=check_project,
+            check_seen=check_seen,
             on_complete=on_complete,
         )
         self._enqueue(rec, put_on_heap=True)
@@ -273,7 +276,11 @@ class InferenceQueue:
         if rec.image_bytes_getter is None:
             raise RuntimeError("Per-image task missing bytes getter.")
         image_bytes = rec.image_bytes_getter()
-        result: InferenceResult = inferencer.predict(image_bytes, rec.clinical_text or "")
+        result: InferenceResult = inferencer.predict(
+            image_bytes,
+            check_project=rec.check_project or "",
+            check_seen=rec.check_seen or "",
+        )
         rec.result = result
 
 

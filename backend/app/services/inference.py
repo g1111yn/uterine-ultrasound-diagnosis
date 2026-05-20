@@ -32,6 +32,7 @@ from app.config import (
     GRADCAM_DIR,
 )
 from app.utils.image import load_image_bytes
+from app.utils.text import build_clinical_text
 
 CLASS_NAMES = ["normal", "endometrial_cancer", "polyp"]
 IMG_SIZE = 300
@@ -216,9 +217,11 @@ class RealInferencer:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _encode_text(self, clinical_text: str) -> torch.Tensor:
-        """返回 (1, 768) tensor。空文本走零向量。"""
-        emb = self._bert.encode(clinical_text)
+    def _encode_text(self, check_project: str, check_seen: str) -> torch.Tensor:
+        """检查项目 + 检查所见 → 清洗 → 拼接 → BERT 编码 → (1, 768) tensor。
+        全空时走 768 维零向量。"""
+        full_text = build_clinical_text(check_project, check_seen)
+        emb = self._bert.encode(full_text)
         return torch.from_numpy(emb).unsqueeze(0).to(self._device)
 
     def _preprocess_image(self, pil_img: Image.Image) -> torch.Tensor:
@@ -296,14 +299,19 @@ class RealInferencer:
     # Public API
     # ------------------------------------------------------------------
 
-    def predict(self, image_bytes: bytes, clinical_text: str) -> InferenceResult:
+    def predict(
+        self,
+        image_bytes: bytes,
+        check_project: str = "",
+        check_seen: str = "",
+    ) -> InferenceResult:
         self.ensure_loaded()
 
         start = time.perf_counter_ns()
 
         pil_img = load_image_bytes(image_bytes)
         img_tensor = self._preprocess_image(pil_img)
-        txt_embed = self._encode_text(clinical_text or "")
+        txt_embed = self._encode_text(check_project, check_seen)
 
         with self._lock:
             with torch.no_grad():

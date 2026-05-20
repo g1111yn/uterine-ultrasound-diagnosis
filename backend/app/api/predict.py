@@ -185,6 +185,7 @@ async def predict(
     request: Request,
     images: list[UploadFile] = File(...),
     clinical_text: str = Form(""),
+    check_project: str = Form(""),
     patient_no: str = Form(""),
     idempotency_key: str = Form(""),
     db: Session = Depends(get_db),
@@ -238,6 +239,7 @@ async def predict(
     case = Case(
         case_id=case_id,
         patient_no=patient_no,
+        check_project=check_project,
         clinical_text=clinical_text,
         doctor_id=doctor_id,
     )
@@ -294,7 +296,8 @@ async def predict(
             tid,
             priority=0,
             image_bytes_getter=getter,
-            clinical_text=clinical_text,
+            check_project=check_project,
+            check_seen=clinical_text,
             on_complete=child_cb,
         )
 

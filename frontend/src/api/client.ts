@@ -113,6 +113,7 @@ export async function changePassword(body: ChangePasswordRequest): Promise<{ ok:
 export interface PredictFormData {
   images: File[]
   clinical_text: string
+  check_project: string
   patient_no: string
   idempotency_key: string
 }
@@ -121,6 +122,7 @@ export async function postPredict(params: PredictFormData): Promise<PredictRespo
   const form = new FormData()
   params.images.forEach((f) => form.append('images', f))
   form.append('clinical_text', params.clinical_text)
+  form.append('check_project', params.check_project)
   form.append('patient_no', params.patient_no)
   form.append('idempotency_key', params.idempotency_key)
   const { data } = await client.post<PredictResponse>('/predict', form)
