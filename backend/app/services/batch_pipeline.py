@@ -44,8 +44,10 @@ from app.utils.image import save_upload_with_preview
 
 BATCH_PRIORITY = 5
 MAX_UNCOMPRESSED_BYTES = int(os.getenv("BATCH_MAX_UNCOMPRESSED_BYTES", str(500 * 1024 * 1024)))  # 500 MB
-MAX_IMAGES_PER_PATIENT_BATCH = int(os.getenv("BATCH_MAX_IMAGES_PER_PATIENT", "20"))
+MAX_IMAGES_PER_PATIENT_BATCH = int(os.getenv("BATCH_MAX_IMAGES_PER_PATIENT", "30"))
 ALLOWED_EXTS = {"jpg", "jpeg", "png", "bmp", "tif", "tiff", "dcm"}
+
+KNOWN_MANIFEST_COLUMNS = {"patient_no", "clinical_text", "check_project"}
 
 # user_id -> lock; ensures one in-flight batch submission per user.
 _user_locks: dict[str, threading.Lock] = {}
@@ -53,11 +55,24 @@ _user_locks_guard = threading.Lock()
 
 
 class BatchError(Exception):
-    def __init__(self, code: str, message: str, status: int = 400):
+    """Hard validation error — submission cannot continue.
+
+    ``details`` is an optional list of structured diagnostics keyed by
+    ``kind`` so the frontend can render an itemized error list.
+    """
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        status: int = 400,
+        details: Optional[list[dict]] = None,
+    ):
         super().__init__(message)
         self.code = code
         self.message = message
         self.status = status
+        self.details: list[dict] = details or []
 
 
 # -- ZIP + manifest parsing --------------------------------------------------
@@ -93,18 +108,58 @@ def _safe_extract_zip(archive: bytes, dest: Path) -> None:
 DEFAULT_CHECK_PROJECT = "经阴道三维超声"
 
 
-def _parse_manifest(path: Path) -> dict[str, tuple[str, str]]:
-    """manifest.csv columns: patient_no, clinical_text, [check_project].
+def _levenshtein(a: str, b: str) -> int:
+    """Tiny edit-distance impl for column-name typo detection (≤ ~30 chars)."""
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cost = 0 if ca == cb else 1
+            cur.append(min(cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost))
+        prev = cur
+    return prev[-1]
 
-    Returns patient_no -> (check_project, clinical_text) mapping.
-    check_project 缺省为 DEFAULT_CHECK_PROJECT，与单例推理默认值一致。
+
+def _suggest_known_column(name: str) -> Optional[str]:
+    candidates = [(_levenshtein(name.lower(), k), k) for k in KNOWN_MANIFEST_COLUMNS]
+    candidates.sort()
+    dist, best = candidates[0]
+    if 0 < dist <= 2:
+        return best
+    return None
+
+
+def _parse_manifest(
+    path: Path,
+) -> tuple[dict[str, tuple[str, str]], list[dict]]:
+    """Parse manifest.csv → (mapping, warnings).
+
+    Required columns: ``patient_no``, ``clinical_text``.
+    Optional column: ``check_project`` (defaults to DEFAULT_CHECK_PROJECT).
+
+    Warnings collected (non-fatal, returned to caller):
+      - ``unknown_column``: column name not in KNOWN_MANIFEST_COLUMNS,
+        with optional ``suggest`` if a near-match is found
+      - ``empty_patient_no``: row with blank patient_no (skipped)
+      - ``duplicate_patient_no``: same patient_no listed twice
+        (later row overrides earlier)
+      - ``clinical_text_truncated``: text > 10000 chars, truncated
     """
     if not path.exists():
         raise BatchError("NO_MANIFEST", "ZIP 内缺少 manifest.csv")
     try:
         text = path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError:
-        raise BatchError("MANIFEST_ENCODING", "manifest.csv 必须是 UTF-8 编码")
+        raise BatchError(
+            "MANIFEST_ENCODING",
+            "manifest.csv 必须是 UTF-8 编码（推荐用 Excel「另存为 → CSV UTF-8」导出）",
+        )
     reader = csv.DictReader(io.StringIO(text))
     fields = [f.strip() for f in (reader.fieldnames or [])]
     if "patient_no" not in fields:
@@ -112,18 +167,51 @@ def _parse_manifest(path: Path) -> dict[str, tuple[str, str]]:
     if "clinical_text" not in fields:
         raise BatchError("MANIFEST_MISSING_COLUMN", "manifest.csv 必须包含 clinical_text 列")
 
+    warnings: list[dict] = []
+    for col in fields:
+        if col not in KNOWN_MANIFEST_COLUMNS:
+            suggest = _suggest_known_column(col)
+            warnings.append({
+                "kind": "unknown_column",
+                "column": col,
+                "suggest": suggest,
+                "message": (
+                    f"未识别的列「{col}」"
+                    + (f"，是否想写「{suggest}」？" if suggest else "，已忽略。")
+                ),
+            })
+
     out: dict[str, tuple[str, str]] = {}
-    for row in reader:
+    for idx, row in enumerate(reader, start=2):  # row 1 is header
         pno = (row.get("patient_no") or "").strip()
+        if not pno:
+            warnings.append({
+                "kind": "empty_patient_no",
+                "row": idx,
+                "message": f"第 {idx} 行 patient_no 为空，已跳过。",
+            })
+            continue
         txt = (row.get("clinical_text") or "").strip()
-        proj = (row.get("check_project") or "").strip() or DEFAULT_CHECK_PROJECT
         if len(txt) > 10000:
+            warnings.append({
+                "kind": "clinical_text_truncated",
+                "row": idx,
+                "patient_no": pno,
+                "message": f"第 {idx} 行（{pno}）clinical_text 超过 10000 字，已截断。",
+            })
             txt = txt[:10000]
-        if pno:
-            out[pno] = (proj, txt)
+        proj = (row.get("check_project") or "").strip() or DEFAULT_CHECK_PROJECT
+        if pno in out:
+            warnings.append({
+                "kind": "duplicate_patient_no",
+                "row": idx,
+                "patient_no": pno,
+                "message": f"第 {idx} 行 patient_no「{pno}」重复，使用最后一行的值。",
+            })
+        out[pno] = (proj, txt)
     if not out:
         raise BatchError("MANIFEST_EMPTY", "manifest.csv 中没有有效的病人记录")
-    return out
+    return out, warnings
 
 
 def _collect_patient_images(root: Path) -> dict[str, list[Path]]:
@@ -200,8 +288,27 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
             except zipfile.BadZipFile:
                 raise BatchError("BAD_ZIP", "上传文件不是有效的 ZIP 压缩包。")
 
-            manifest = _parse_manifest(job_dir / "manifest.csv")
+            manifest, warnings = _parse_manifest(job_dir / "manifest.csv")
             patients = _collect_patient_images(job_dir)
+
+            # Diagnose patients in manifest but missing image directory
+            for pno in manifest.keys():
+                if pno not in patients:
+                    warnings.append({
+                        "kind": "missing_directory",
+                        "patient_no": pno,
+                        "message": f"manifest 中的「{pno}」在 ZIP 内找不到对应子目录，已跳过。",
+                    })
+            # Diagnose directories with images but not listed in manifest
+            for pno in patients.keys():
+                if pno not in manifest:
+                    warnings.append({
+                        "kind": "directory_not_in_manifest",
+                        "patient_no": pno,
+                        "message": f"目录「{pno}」未在 manifest.csv 中列出，已跳过。",
+                    })
+            # Diagnose patients with subdirs but no supported images
+            # (already filtered upstream — _collect_patient_images skips empty dirs)
 
             # Only keep patients that exist in manifest AND have images.
             active_patients: list[tuple[str, str, str, list[Path]]] = []
@@ -212,7 +319,11 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
 
             if not active_patients:
                 shutil.rmtree(job_dir, ignore_errors=True)
-                raise BatchError("NO_PATIENTS", "manifest.csv 中的病人都没有找到对应图像文件夹。")
+                raise BatchError(
+                    "NO_PATIENTS",
+                    "manifest.csv 中的病人都没有找到对应的图像目录。",
+                    details=warnings,
+                )
 
             strategy = get_strategy(aggregation_strategy)
             total_images = sum(len(imgs) for _, _, _, imgs in active_patients)
@@ -284,6 +395,7 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                 "total_patients": job.total_patients,
                 "total_images": job.total_images,
                 "status_url": f"/api/batch/{job_id}",
+                "warnings": warnings,
             }
         except BatchError:
             db.rollback()

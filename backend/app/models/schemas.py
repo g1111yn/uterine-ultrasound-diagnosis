@@ -73,9 +73,32 @@ class TaskStatusResponse(BaseModel):
 class BatchResultItem(BaseModel):
     case_id: str
     patient_no: str
-    predicted_class_zh: str
-    confidence: float
+    predicted_class: Optional[str] = None
+    predicted_class_zh: Optional[str] = None
+    confidence: Optional[float] = None
     image_count: int
+    error: Optional[str] = None
+
+
+class BatchJobListItem(BaseModel):
+    job_id: str
+    status: str
+    total_patients: int
+    completed_patients: int
+    succeeded_patients: int
+    failed_patients: int
+    total_images: int
+    completed_images: int
+    aggregation_strategy: str
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+
+
+class BatchJobListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[BatchJobListItem]
 
 
 class BatchStatusResponse(BaseModel):

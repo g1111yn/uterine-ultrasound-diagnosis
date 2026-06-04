@@ -64,6 +64,7 @@ async def list_cases(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     doctor_id: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),  # "single" | "batch" | None(all)
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -86,6 +87,10 @@ async def list_cases(
         )
     if doctor_id:
         q = q.filter(Case.doctor_id == doctor_id)
+    if source == "single":
+        q = q.filter(Case.batch_job_id.is_(None))
+    elif source == "batch":
+        q = q.filter(Case.batch_job_id.isnot(None))
     if date_from:
         try:
             q = q.filter(Case.created_at >= datetime.fromisoformat(date_from))
@@ -93,7 +98,11 @@ async def list_cases(
             pass
     if date_to:
         try:
-            q = q.filter(Case.created_at <= datetime.fromisoformat(date_to))
+            dt = datetime.fromisoformat(date_to)
+            # date_to 精确到天时，包含当天全天
+            if len(date_to) == 10:
+                dt = dt.replace(hour=23, minute=59, second=59)
+            q = q.filter(Case.created_at <= dt)
         except ValueError:
             pass
     if predicted_class:

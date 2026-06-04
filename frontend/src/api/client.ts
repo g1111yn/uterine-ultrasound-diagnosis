@@ -4,6 +4,7 @@ import type {
   PredictResponse,
   BatchSubmitResponse,
   BatchStatusResponse,
+  BatchJobListResponse,
   CaseListResponse,
   CaseListParams,
   CaseDetail,
@@ -58,12 +59,20 @@ function extractErrorCode(error: AxiosError): string | undefined {
   return data?.error?.code ?? (typeof data?.detail === 'object' ? data?.detail?.code : undefined)
 }
 
+function extractErrorDetails(error: AxiosError): unknown[] | undefined {
+  const data = error.response?.data as
+    | { error?: { details?: unknown[] } }
+    | undefined
+  return data?.error?.details
+}
+
 client.interceptors.response.use(
   (res) => res,
   (error: AxiosError) => {
     const status = error.response?.status
     const code = extractErrorCode(error)
     const message = extractErrorMessage(error)
+    const details = extractErrorDetails(error)
 
     // 401 统一跳登录（登录请求本身不跳）
     if (status === 401) {
@@ -74,9 +83,14 @@ client.interceptors.response.use(
       }
     }
 
-    const err = new Error(message) as Error & { code?: string; status?: number }
+    const err = new Error(message) as Error & {
+      code?: string
+      status?: number
+      details?: unknown[]
+    }
     if (code) err.code = code
     if (status) err.status = status
+    if (details) err.details = details
     return Promise.reject(err)
   },
 )
@@ -143,6 +157,13 @@ export async function postBatchPredict(
   form.append('archive', archive)
   form.append('aggregation_strategy', aggregationStrategy)
   const { data } = await client.post<BatchSubmitResponse>('/predict/batch', form)
+  return data
+}
+
+export async function getBatchJobs(page = 1, pageSize = 20): Promise<BatchJobListResponse> {
+  const { data } = await client.get<BatchJobListResponse>('/batch', {
+    params: { page, page_size: pageSize },
+  })
   return data
 }
 

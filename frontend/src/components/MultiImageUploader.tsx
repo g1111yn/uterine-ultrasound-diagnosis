@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Upload, X, Image as ImageIcon } from 'lucide-react'
 
 interface Props {
@@ -177,16 +177,22 @@ export default function MultiImageUploader({
 }
 
 function Thumbnail({ file, onRemove }: { file: File; onRemove: () => void }) {
-  const [preview] = useState<string | null>(() => {
-    if (isDicom(file)) return null
-    return URL.createObjectURL(file)
-  })
+  const [preview, setPreview] = useState<string | null>(null)
+  const urlRef = useRef<string | null>(null)
 
   useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview)
+    if (isDicom(file)) {
+      setPreview(null)
+      return
     }
-  }, [preview])
+    const url = URL.createObjectURL(file)
+    urlRef.current = url
+    setPreview(url)
+    return () => {
+      URL.revokeObjectURL(url)
+      urlRef.current = null
+    }
+  }, [file])
 
   return (
     <div className="relative shrink-0 w-20 h-20 rounded-md overflow-hidden border border-border bg-bg-tertiary group">

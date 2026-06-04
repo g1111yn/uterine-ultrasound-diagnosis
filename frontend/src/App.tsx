@@ -7,6 +7,8 @@ import Login from '@/pages/Login'
 import ChangePassword from '@/pages/ChangePassword'
 import Predict from '@/pages/Predict'
 import Batch from '@/pages/Batch'
+import BatchHistory from '@/pages/BatchHistory'
+import BatchDetail from '@/pages/BatchDetail'
 import History from '@/pages/History'
 import CaseDetail from '@/pages/CaseDetail'
 import Settings from '@/pages/Settings'
@@ -38,6 +40,8 @@ export default function App() {
                 <Route path="/" element={<Predict />} />
                 <Route path="/predict" element={<Navigate to="/" replace />} />
                 <Route path="/batch" element={<Batch />} />
+                <Route path="/batch/history" element={<BatchHistory />} />
+                <Route path="/batch/:jobId" element={<BatchDetail />} />
                 <Route path="/history" element={<History />} />
                 <Route path="/case/:caseId" element={<CaseDetail />} />
                 <Route path="/settings" element={<Settings />} />

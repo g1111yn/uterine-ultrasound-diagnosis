@@ -166,16 +166,40 @@ export interface CaseListParams {
   date_from?: string
   date_to?: string
   doctor_id?: string
+  source?: 'single' | 'batch'
   page?: number
   page_size?: number
 }
 
 // ========== 批量推理 ==========
+
+export interface BatchDiagnostic {
+  /** 诊断类型 */
+  kind:
+    | 'unknown_column'
+    | 'empty_patient_no'
+    | 'duplicate_patient_no'
+    | 'clinical_text_truncated'
+    | 'missing_directory'
+    | 'directory_not_in_manifest'
+  /** manifest.csv 中的行号（如适用） */
+  row?: number
+  /** 列名（unknown_column 用） */
+  column?: string
+  /** 编辑距离推荐的列名 */
+  suggest?: string | null
+  /** patient_no（如适用） */
+  patient_no?: string
+  /** 给医生看的中文描述 */
+  message: string
+}
+
 export interface BatchSubmitResponse {
   job_id: string
   total_patients: number
   total_images: number
   status_url: string
+  warnings: BatchDiagnostic[]
 }
 
 export type BatchJobStatus =
@@ -193,6 +217,27 @@ export interface BatchResultItem {
   predicted_class_zh: string | null
   confidence: number | null
   error: string | null
+}
+
+export interface BatchJobListItem {
+  job_id: string
+  status: BatchJobStatus
+  total_patients: number
+  completed_patients: number
+  succeeded_patients: number
+  failed_patients: number
+  total_images: number
+  completed_images: number
+  aggregation_strategy: AggregationStrategy
+  started_at: string
+  finished_at: string | null
+}
+
+export interface BatchJobListResponse {
+  total: number
+  page: number
+  page_size: number
+  items: BatchJobListItem[]
 }
 
 export interface BatchStatusResponse {
