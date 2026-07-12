@@ -33,6 +33,7 @@ from app.services.batch_pipeline import (
     submit_batch,
 )
 from app.services.inference_queue import InferenceQueue, TaskRecord
+from app.services.report_pdf import generate_report_pdf
 
 
 class ClinicalWorkflowTests(unittest.TestCase):
@@ -138,6 +139,53 @@ class ClinicalWorkflowTests(unittest.TestCase):
         response = asyncio.run(get_case(case.case_id, self.db, self.user))
 
         self.assertEqual(response.judgment.final_class_zh, "疑似子宫内膜癌")
+
+    def test_pdf_separates_model_and_physician_class_labels(self):
+        case = SimpleNamespace(
+            case_id="case-report",
+            patient_no="p-report",
+            created_at=datetime(2026, 7, 12, tzinfo=timezone.utc),
+            doctor_id=self.user.user_id,
+            check_project="",
+            clinical_text="",
+        )
+        prediction = SimpleNamespace(
+            predicted_class="endometrial_cancer",
+            confidence=0.9,
+            aggregation_strategy="mean",
+            image_count=1,
+            model_version="test",
+            prob_normal=0.05,
+            prob_cancer=0.9,
+            prob_polyp=0.05,
+        )
+
+        for final_class, expected_label in (
+            ("endometrial_cancer", "疑似子宫内膜癌"),
+            ("indeterminate", "无法判断 / 需进一步检查"),
+        ):
+            captured_rows = []
+            judgment = SimpleNamespace(
+                final_class=final_class,
+                recommendation="biopsy",
+                judged_at=datetime(2026, 7, 12, tzinfo=timezone.utc),
+                doctor_id=self.user.user_id,
+                note="",
+            )
+
+            from app.services import report_pdf
+            original_info_table = report_pdf._info_table
+
+            def capture_info_table(rows):
+                captured_rows.append(rows)
+                return original_info_table(rows)
+
+            with patch("app.services.report_pdf._info_table", side_effect=capture_info_table):
+                generate_report_pdf(case, prediction, judgment, images=[])
+
+            row_values = dict(row for rows in captured_rows for row in rows)
+            self.assertEqual(row_values["预测分类"], "子宫内膜癌")
+            self.assertEqual(row_values["最终诊断"], expected_label)
 
     def test_empty_work_marks_batch_failed(self):
         job = BatchJob(job_id="batch-empty", user_id=self.user.user_id, status="running")

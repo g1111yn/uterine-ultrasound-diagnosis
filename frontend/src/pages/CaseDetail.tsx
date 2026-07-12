@@ -228,7 +228,7 @@ export default function CaseDetail() {
               }
               initialRecommendation={data.judgment?.recommendation ?? ''}
               initialNote={data.judgment?.note ?? ''}
-              onSubmit={(body) => judgment.mutate(body)}
+              onSubmit={(body) => judgment.mutateAsync(body)}
               loading={judgment.isPending}
               reportUrl={getReportUrl(data.case_id)}
             />

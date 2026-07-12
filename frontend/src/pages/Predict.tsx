@@ -349,7 +349,7 @@ export default function Predict() {
                   initialClass={detail.judgment?.final_class ?? null}
                   initialRecommendation={detail.judgment?.recommendation ?? ''}
                   initialNote={detail.judgment?.note ?? ''}
-                  onSubmit={(body) => judgment.mutate(body)}
+                  onSubmit={(body) => judgment.mutateAsync(body)}
                   loading={judgment.isPending}
                   reportUrl={getReportUrl(detail.case_id)}
                 />

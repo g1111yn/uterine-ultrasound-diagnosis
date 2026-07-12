@@ -14,7 +14,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
 from app.config import DATA_DIR
-from app.models.schemas import CLASS_ZH
+from app.models.schemas import CLASS_ZH, JUDGMENT_CLASS_ZH
 
 pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
 
@@ -212,7 +212,7 @@ def generate_report_pdf(case, prediction, judgment, images=None) -> bytes:
     story.append(Paragraph("医生判断", STYLE_SECTION))
     if judgment:
         judg_rows = [
-            ("最终诊断", CLASS_ZH.get(judgment.final_class, judgment.final_class)),
+            ("最终诊断", JUDGMENT_CLASS_ZH.get(judgment.final_class, judgment.final_class)),
             ("处置建议", RECOMMENDATION_ZH.get(judgment.recommendation, judgment.recommendation)),
             ("判断时间", _fmt_dt(judgment.judged_at)),
             ("医生", judgment.doctor_id or "—"),

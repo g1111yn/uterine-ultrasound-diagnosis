@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Download, Save } from 'lucide-react'
 import type { JudgmentClass, JudgmentRequest } from '@/lib/types'
 import { JUDGMENT_LABELS_ZH } from '@/lib/classification'
@@ -8,7 +8,7 @@ interface Props {
   initialClass?: JudgmentClass | null
   initialRecommendation?: string
   initialNote?: string
-  onSubmit: (data: JudgmentRequest) => void
+  onSubmit: (data: JudgmentRequest) => Promise<unknown>
   loading?: boolean
   caseId?: string
   reportUrl?: string
@@ -43,17 +43,36 @@ export default function JudgmentForm({
   const [finalClass, setFinalClass] = useState<JudgmentClass | null>(initialClass)
   const [recommendation, setRecommendation] = useState(initialRecommendation)
   const [note, setNote] = useState(initialNote)
+  const [savedValues, setSavedValues] = useState({
+    finalClass: initialClass,
+    recommendation: initialRecommendation,
+    note: initialNote,
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   const dirty =
-    finalClass !== initialClass ||
-    recommendation !== initialRecommendation ||
-    note !== initialNote
+    finalClass !== savedValues.finalClass ||
+    recommendation !== savedValues.recommendation ||
+    note !== savedValues.note
 
   useUnsavedChangesWarning(dirty)
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!finalClass) return
-    onSubmit({ final_class: finalClass, recommendation, note })
+    if (!finalClass || loading || submittingRef.current) return
+
+    const submittedValues = { final_class: finalClass, recommendation, note }
+    submittingRef.current = true
+    setSubmitting(true)
+    try {
+      await onSubmit(submittedValues)
+      setSavedValues({ finalClass, recommendation, note })
+    } catch {
+      // The mutation exposes its error state to the page; keep the form dirty for retry.
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -118,11 +137,11 @@ export default function JudgmentForm({
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          disabled={loading || finalClass === null}
+          disabled={loading || submitting || finalClass === null}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-info-text px-4 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Save className="h-3.5 w-3.5" />
-          {loading ? '提交中...' : '保存判断'}
+          {loading || submitting ? '提交中...' : '保存判断'}
         </button>
         {reportUrl && (
           <a
