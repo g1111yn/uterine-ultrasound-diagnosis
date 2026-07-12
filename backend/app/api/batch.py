@@ -23,6 +23,10 @@ def _public_status(status: str) -> str:
     return "queued" if status == "pending" else status
 
 
+def _internal_status_filter(status: str) -> str:
+    return "pending" if status == "queued" else status
+
+
 def _err(code: str, message: str, status: int = 400, details: list[dict] | None = None):
     body: dict = {"error": {"code": code, "message": message}}
     if details:
@@ -40,7 +44,7 @@ async def list_batch_jobs(
 ):
     q = db.query(BatchJob).filter(BatchJob.user_id == current_user.user_id)
     if status:
-        q = q.filter(BatchJob.status == status)
+        q = q.filter(BatchJob.status == _internal_status_filter(status))
     total = q.count()
     jobs = (
         q.order_by(BatchJob.started_at.desc())

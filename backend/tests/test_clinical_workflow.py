@@ -527,6 +527,27 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(listing.items[0].status, "queued")
         self.assertEqual(detail.status, "queued")
 
+    def test_batch_job_list_maps_queued_filter_to_internal_pending_status(self):
+        other = User(user_id="queued-other", display_name="其他医生", password_hash="unused")
+        self.db.add_all([
+            other,
+            BatchJob(job_id="mine-queued", user_id=self.user.user_id, status="pending"),
+            BatchJob(job_id="other-queued", user_id=other.user_id, status="pending"),
+        ])
+        self.db.commit()
+
+        response = asyncio.run(list_batch_jobs(
+            page=1,
+            page_size=20,
+            status="queued",
+            db=self.db,
+            current_user=self.user,
+        ))
+
+        self.assertEqual(response.total, 1)
+        self.assertEqual([item.job_id for item in response.items], ["mine-queued"])
+        self.assertEqual(response.items[0].status, "queued")
+
     def test_cancel_during_final_aggregation_has_consistent_terminal_state(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             engine = create_engine(
