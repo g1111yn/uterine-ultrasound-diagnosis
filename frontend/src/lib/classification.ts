@@ -1,8 +1,6 @@
-export type ClassificationClass =
-  | 'normal'
-  | 'endometrial_cancer'
-  | 'polyp'
-  | 'indeterminate'
+import type { JudgmentClass } from './types'
+
+export type ClassificationClass = JudgmentClass
 
 export const PREDICTION_LABELS_ZH = {
   normal: '子宫正常大',
@@ -12,6 +10,7 @@ export const PREDICTION_LABELS_ZH = {
 
 export const JUDGMENT_LABELS_ZH = {
   ...PREDICTION_LABELS_ZH,
+  normal: '正常',
   endometrial_cancer: '疑似子宫内膜癌',
   indeterminate: '无法判断 / 需进一步检查',
 } as const

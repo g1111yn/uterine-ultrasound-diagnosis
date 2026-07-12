@@ -13,7 +13,7 @@ import JudgmentForm from '@/components/JudgmentForm'
 import ProbabilityBars from '@/components/ProbabilityBars'
 import ClassBadge from '@/components/ClassBadge'
 import { formatDateTime } from '@/lib/utils'
-import type { JudgmentRequest, PredictedClass } from '@/lib/types'
+import type { JudgmentRequest } from '@/lib/types'
 
 const classTypeMap: Record<string, 'normal' | 'endometrial_cancer' | 'polyp'> = {
   normal: 'normal',
@@ -224,7 +224,7 @@ export default function CaseDetail() {
           <div className="rounded-lg border border-border bg-bg-primary p-4">
             <JudgmentForm
               initialClass={
-                (data.judgment?.final_class ?? pred?.predicted_class ?? 'normal') as PredictedClass
+                data.judgment?.final_class ?? null
               }
               initialRecommendation={data.judgment?.recommendation ?? ''}
               initialNote={data.judgment?.note ?? ''}

@@ -346,7 +346,7 @@ export default function Predict() {
               {/* 医生判断表单 */}
               <div className="rounded-lg border border-border bg-bg-primary p-4">
                 <JudgmentForm
-                  initialClass={detail.judgment?.final_class ?? pred.predicted_class}
+                  initialClass={detail.judgment?.final_class ?? null}
                   initialRecommendation={detail.judgment?.recommendation ?? ''}
                   initialNote={detail.judgment?.note ?? ''}
                   onSubmit={(body) => judgment.mutate(body)}

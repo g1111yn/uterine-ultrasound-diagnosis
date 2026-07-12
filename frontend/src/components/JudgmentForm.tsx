@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Download, Save } from 'lucide-react'
-import type { PredictedClass, JudgmentRequest } from '@/lib/types'
-import { CLASS_LABELS_ZH } from '@/lib/utils'
+import type { JudgmentClass, JudgmentRequest } from '@/lib/types'
+import { JUDGMENT_LABELS_ZH } from '@/lib/classification'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 
 interface Props {
-  initialClass?: PredictedClass
+  initialClass?: JudgmentClass | null
   initialRecommendation?: string
   initialNote?: string
   onSubmit: (data: JudgmentRequest) => void
@@ -13,7 +14,12 @@ interface Props {
   reportUrl?: string
 }
 
-const classOptions: PredictedClass[] = ['normal', 'endometrial_cancer', 'polyp']
+const classOptions: JudgmentClass[] = [
+  'normal',
+  'polyp',
+  'endometrial_cancer',
+  'indeterminate',
+]
 
 const recommendations = [
   { value: 'none', label: '无' },
@@ -27,19 +33,26 @@ const inputClass =
   'w-full rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-xs text-text-primary outline-none focus:border-info-border transition-colors'
 
 export default function JudgmentForm({
-  initialClass,
+  initialClass = null,
   initialRecommendation = '',
   initialNote = '',
   onSubmit,
   loading = false,
   reportUrl,
 }: Props) {
-  const [finalClass, setFinalClass] = useState<PredictedClass>(initialClass ?? 'normal')
+  const [finalClass, setFinalClass] = useState<JudgmentClass | null>(initialClass)
   const [recommendation, setRecommendation] = useState(initialRecommendation)
   const [note, setNote] = useState(initialNote)
+  const dirty =
+    finalClass !== initialClass ||
+    recommendation !== initialRecommendation ||
+    note !== initialNote
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  useUnsavedChangesWarning(dirty)
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!finalClass) return
     onSubmit({ final_class: finalClass, recommendation, note })
   }
 
@@ -47,44 +60,55 @@ export default function JudgmentForm({
     <form onSubmit={handleSubmit} className="space-y-3.5">
       <h3 className="text-xs font-medium text-text-secondary">医生最终判断</h3>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-[11px] text-text-tertiary">诊断分类</label>
-          <select
-            value={finalClass}
-            onChange={(e) => setFinalClass(e.target.value as PredictedClass)}
-            className={inputClass}
-          >
-            {classOptions.map((cls) => (
-              <option key={cls} value={cls}>
-                {cls === initialClass
-                  ? `${CLASS_LABELS_ZH[cls]}（同意模型）`
-                  : CLASS_LABELS_ZH[cls]}
-              </option>
-            ))}
-          </select>
+      <fieldset className="space-y-1.5">
+        <legend className="text-[11px] text-text-tertiary">诊断分类</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {classOptions.map((option) => (
+            <label
+              key={option}
+              className={`flex min-h-10 cursor-pointer items-center rounded-md border px-3 py-2 text-xs transition-colors focus-within:ring-2 focus-within:ring-info-border ${
+                finalClass === option
+                  ? 'border-info-border bg-info-bg text-info-text'
+                  : 'border-border-secondary bg-bg-primary text-text-primary hover:bg-bg-tertiary'
+              }`}
+            >
+              <input
+                type="radio"
+                name="final-class"
+                value={option}
+                checked={finalClass === option}
+                onChange={() => setFinalClass(option)}
+                className="mr-2 accent-info-text"
+              />
+              <span>{JUDGMENT_LABELS_ZH[option]}</span>
+            </label>
+          ))}
         </div>
+      </fieldset>
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] text-text-tertiary">处置建议</label>
-          <select
-            value={recommendation}
-            onChange={(e) => setRecommendation(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">请选择</option>
-            {recommendations.map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
-          </select>
-        </div>
+      <div className="space-y-1.5">
+        <label htmlFor="judgment-recommendation" className="text-[11px] text-text-tertiary">
+          处置建议
+        </label>
+        <select
+          id="judgment-recommendation"
+          value={recommendation}
+          onChange={(event) => setRecommendation(event.target.value)}
+          className={inputClass}
+        >
+          <option value="">请选择</option>
+          {recommendations.map((item) => (
+            <option key={item.value} value={item.value}>{item.label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[11px] text-text-tertiary">备注</label>
+        <label htmlFor="judgment-note" className="text-[11px] text-text-tertiary">备注</label>
         <textarea
+          id="judgment-note"
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onChange={(event) => setNote(event.target.value)}
           rows={2}
           className={`${inputClass} resize-none`}
           placeholder="可选备注信息..."
@@ -94,20 +118,20 @@ export default function JudgmentForm({
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-xs font-medium bg-info-text text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+          disabled={loading || finalClass === null}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-info-text px-4 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Save className="w-3.5 h-3.5" />
-          {loading ? '提交中...' : '存到历史'}
+          <Save className="h-3.5 w-3.5" />
+          {loading ? '提交中...' : '保存判断'}
         </button>
         {reportUrl && (
           <a
             href={reportUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3.5 py-2 text-xs font-medium text-text-primary hover:bg-bg-tertiary transition-colors"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3.5 py-2 text-xs font-medium text-text-primary transition-colors hover:bg-bg-tertiary"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="h-3.5 w-3.5" />
             导出 PDF 报告
           </a>
         )}
