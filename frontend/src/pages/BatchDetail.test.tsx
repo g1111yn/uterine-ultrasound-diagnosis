@@ -1,13 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cancelBatch } from '@/api/client'
+import { cancelBatch, getBatchStatus } from '@/api/client'
 import type { BatchJobStatus } from '@/lib/types'
-import { BatchCancelButton } from './BatchDetail'
+import BatchDetail, { BatchCancelButton } from './BatchDetail'
 
 vi.mock('@/api/client', () => ({
   cancelBatch: vi.fn(),
+  getBatchStatus: vi.fn(),
+  getCaseDetail: vi.fn(),
+  getImageUrl: vi.fn(),
 }))
 
 afterEach(() => {
@@ -76,5 +80,63 @@ describe('BatchCancelButton', () => {
     )
     await user.click(screen.getByRole('button', { name: '取消任务' }))
     expect(await screen.findByText('取消失败：任务已结束')).toBeVisible()
+  })
+})
+
+describe('BatchDetail request errors', () => {
+  it('replaces the spinner with an error, history link, and retry action', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getBatchStatus).mockRejectedValue(new Error('任务服务不可用'))
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/batch/job-1']}>
+          <Routes>
+            <Route path="/batch/:jobId" element={<BatchDetail />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('任务服务不可用')
+    expect(screen.queryByText('正在推理中...')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '返回批量任务历史' })).toHaveAttribute('href', '/batch/history')
+
+    await user.click(screen.getByRole('button', { name: '重新加载批量任务详情' }))
+    await waitFor(() => expect(getBatchStatus).toHaveBeenCalledTimes(2))
+  })
+
+  it('names the icon-only history button after a successful load', async () => {
+    vi.mocked(getBatchStatus).mockResolvedValue({
+      job_id: 'job-1',
+      status: 'completed',
+      total_patients: 0,
+      completed_patients: 0,
+      total_images: 0,
+      completed_images: 0,
+      estimated_remaining_ms: 0,
+      current_patient: null,
+      started_at: '2026-07-12T08:00:00Z',
+      finished_at: '2026-07-12T08:01:00Z',
+      aggregation_strategy: 'mean',
+      results: [],
+      error: null,
+    })
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/batch/job-1']}>
+          <Routes>
+            <Route path="/batch/:jobId" element={<BatchDetail />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByRole('button', { name: '返回批量任务历史' })).toBeVisible()
   })
 })

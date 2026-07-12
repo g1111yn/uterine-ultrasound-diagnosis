@@ -8,13 +8,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi import Request
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.api.batch import get_batch_status, list_batch_jobs
+from app.api.batch import get_batch_status, list_batch_jobs, router as batch_router
 from app.api.cases import get_case, submit_judgment
-from app.models.db import Base, BatchJob, Case, CaseImage, Judgment, Prediction, User
+from app.models.db import Base, BatchJob, Case, CaseImage, Judgment, Prediction, User, get_db
 from app.models.schemas import (
     CLASS_ZH,
     JUDGMENT_CLASS_ZH,
@@ -34,6 +35,7 @@ from app.services.batch_pipeline import (
 )
 from app.services.inference_queue import InferenceQueue, TaskRecord
 from app.services.report_pdf import generate_report_pdf
+from app.services import auth
 
 
 class ClinicalWorkflowTests(unittest.TestCase):
@@ -547,6 +549,27 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(response.total, 1)
         self.assertEqual([item.job_id for item in response.items], ["mine-queued"])
         self.assertEqual(response.items[0].status, "queued")
+
+    def test_batch_job_list_rejects_non_public_status_filters(self):
+        class EmptyQuery:
+            def filter(self, *_args): return self
+            def count(self): return 0
+            def order_by(self, *_args): return self
+            def offset(self, *_args): return self
+            def limit(self, *_args): return self
+            def all(self): return []
+
+        fake_db = SimpleNamespace(query=lambda *_args: EmptyQuery())
+        fake_user = SimpleNamespace(user_id=self.user.user_id)
+        app = FastAPI()
+        app.include_router(batch_router)
+        app.dependency_overrides[get_db] = lambda: fake_db
+        app.dependency_overrides[auth.require_user] = lambda: fake_user
+
+        with TestClient(app) as client:
+            for status in ("pending", "garbage"):
+                response = client.get("/batch", params={"status": status})
+                self.assertEqual(response.status_code, 422)
 
     def test_cancel_during_final_aggregation_has_consistent_terminal_state(self):
         with tempfile.TemporaryDirectory() as tmpdir:

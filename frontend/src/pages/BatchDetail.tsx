@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { cancelBatch, getBatchStatus, getCaseDetail, getImageUrl } from '@/api/client'
@@ -213,7 +213,7 @@ export default function BatchDetail() {
   const navigate = useNavigate()
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['batch-status', jobId],
     queryFn: () => getBatchStatus(jobId!),
     enabled: !!jobId,
@@ -222,6 +222,34 @@ export default function BatchDetail() {
       return s === 'running' || s === 'queued' ? 3000 : false
     },
   })
+
+  if (isError) {
+    return (
+      <WorkspaceContainer>
+        <BatchNav />
+        <div className="rounded-lg border border-danger-border bg-danger-bg p-5">
+          <div role="alert" className="text-xs text-danger-text">
+            批量任务详情加载失败：{error.message}
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <Link
+              to="/batch/history"
+              className="rounded-md border border-border-secondary bg-bg-primary px-3 py-1.5 text-xs text-text-primary hover:bg-bg-tertiary transition-colors"
+            >
+              返回批量任务历史
+            </Link>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover transition-colors"
+            >
+              重新加载批量任务详情
+            </button>
+          </div>
+        </div>
+      </WorkspaceContainer>
+    )
+  }
 
   if (isLoading || !data) {
     return (
@@ -252,6 +280,8 @@ export default function BatchDetail() {
       {/* 顶部 */}
       <div className="flex items-center gap-3 mb-4">
         <button
+          type="button"
+          aria-label="返回批量任务历史"
           onClick={() => navigate('/batch/history')}
           className="p-1 rounded-md hover:bg-bg-tertiary transition-colors"
         >

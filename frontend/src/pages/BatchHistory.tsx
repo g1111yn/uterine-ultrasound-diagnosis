@@ -26,7 +26,7 @@ export default function BatchHistory({ mode = 'history' }: { mode?: 'running' | 
   const [page, setPage] = useState(1)
   const pageSize = 15
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['batch-jobs', mode, page],
     queryFn: () => getBatchJobs(page, pageSize, mode === 'running' ? 'running' : undefined),
   })
@@ -60,6 +60,21 @@ export default function BatchHistory({ mode = 'history' }: { mode?: 'running' | 
                 <td colSpan={6} className="py-12 text-center">
                   <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-text-tertiary" />
                   <span className="text-text-secondary text-xs">加载中...</span>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} className="py-10 text-center">
+                  <div role="alert" className="text-xs text-danger-text mb-3">
+                    批量任务加载失败：{error.message}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="rounded-md border border-border-secondary bg-bg-primary px-3 py-1.5 text-xs text-text-primary hover:bg-bg-tertiary transition-colors"
+                  >
+                    重新加载批量任务
+                  </button>
                 </td>
               </tr>
             ) : data && data.items.length > 0 ? (
@@ -116,6 +131,7 @@ export default function BatchHistory({ mode = 'history' }: { mode?: 'running' | 
           </div>
           <div className="flex items-center gap-1.5">
             <button
+              aria-label="上一页批量任务"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"
@@ -123,6 +139,7 @@ export default function BatchHistory({ mode = 'history' }: { mode?: 'running' | 
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="下一页批量任务"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"

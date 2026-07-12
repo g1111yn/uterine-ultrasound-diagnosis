@@ -267,6 +267,7 @@ export default function History() {
           </div>
           <div className="flex items-center gap-1.5">
             <button
+              aria-label="上一页病例"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"
@@ -274,6 +275,7 @@ export default function History() {
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="下一页病例"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"

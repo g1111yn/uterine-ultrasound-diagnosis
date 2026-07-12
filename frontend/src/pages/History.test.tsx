@@ -17,7 +17,7 @@ afterEach(() => {
 describe('History', () => {
   it('uses the displayed case number as the only case-detail link', async () => {
     vi.mocked(getCases).mockResolvedValue({
-      total: 1,
+      total: 21,
       page: 1,
       page_size: 20,
       items: [{
@@ -55,6 +55,8 @@ describe('History', () => {
     expect(row).not.toHaveClass('cursor-pointer')
     expect(screen.queryByRole('columnheader', { name: '操作' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '详情' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '上一页病例' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '下一页病例' })).toBeEnabled()
     await waitFor(() => expect(getCases).toHaveBeenCalledTimes(1))
   })
 })

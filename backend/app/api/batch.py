@@ -1,6 +1,8 @@
 """Batch inference API (V2)."""
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -17,6 +19,8 @@ from app.services import audit, auth
 from app.services.batch_pipeline import BatchError, cancel_batch, submit_batch
 
 router = APIRouter()
+
+BatchPublicStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
 
 
 def _public_status(status: str) -> str:
@@ -38,7 +42,7 @@ def _err(code: str, message: str, status: int = 400, details: list[dict] | None 
 async def list_batch_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    status: str | None = Query(None),
+    status: BatchPublicStatus | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.require_user),
 ):
