@@ -259,7 +259,7 @@ export default function Predict() {
   }
 
   return (
-    <WorkspaceContainer className="max-w-6xl">
+    <WorkspaceContainer>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* 左侧 - 输入 */}
         <div className="space-y-4">
