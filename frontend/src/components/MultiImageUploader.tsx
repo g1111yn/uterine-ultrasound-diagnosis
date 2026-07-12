@@ -177,27 +177,24 @@ export default function MultiImageUploader({
 }
 
 function Thumbnail({ file, onRemove }: { file: File; onRemove: () => void }) {
-  const [preview, setPreview] = useState<string | null>(null)
-  const urlRef = useRef<string | null>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
+  const dicom = isDicom(file)
 
   useEffect(() => {
-    if (isDicom(file)) {
-      setPreview(null)
-      return
-    }
+    if (dicom) return
+
     const url = URL.createObjectURL(file)
-    urlRef.current = url
-    setPreview(url)
+    if (imageRef.current) imageRef.current.src = url
+
     return () => {
       URL.revokeObjectURL(url)
-      urlRef.current = null
     }
-  }, [file])
+  }, [dicom, file])
 
   return (
     <div className="relative shrink-0 w-20 h-20 rounded-md overflow-hidden border border-border bg-bg-tertiary group">
-      {preview ? (
-        <img src={preview} alt={file.name} className="w-full h-full object-cover" />
+      {!dicom ? (
+        <img ref={imageRef} alt={file.name} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center text-text-tertiary px-1">
           <ImageIcon className="w-4 h-4 mb-0.5" />

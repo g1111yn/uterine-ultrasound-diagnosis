@@ -1,34 +1,23 @@
 import { useCallback, useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   Upload,
   FileUp,
   Loader2,
-  Ban,
   Archive,
   Download,
   AlertTriangle,
   AlertCircle,
   Info,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
-import { postBatchPredict, getBatchStatus, cancelBatch } from '@/api/client'
-import MetricCard from '@/components/MetricCard'
-import ClassBadge, { classFromLabel } from '@/components/ClassBadge'
+import { postBatchPredict } from '@/api/client'
 import type {
   AggregationStrategy,
   BatchDiagnostic,
-  BatchStatusResponse,
 } from '@/lib/types'
-
-const tableClass =
-  'w-full text-xs border-collapse ' +
-  '[&_th]:text-left [&_th]:px-2.5 [&_th]:py-2 [&_th]:font-medium [&_th]:text-text-secondary [&_th]:text-[11px] [&_th]:border-b [&_th]:border-border ' +
-  '[&_td]:px-2.5 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-border ' +
-  '[&_tr:last-child_td]:border-b-0'
 
 const strategyOptions: { value: AggregationStrategy; label: string; hint: string }[] = [
   { value: 'mean', label: '平均（mean）', hint: '推荐，对多张图概率取均值，结果稳健' },
@@ -41,14 +30,6 @@ const MANIFEST_TEMPLATE = `patient_no,clinical_text,check_project
 20260520-002,,经腹超声
 20260520-003,可见息肉样回声,经阴道三维超声
 `
-
-function formatRemaining(ms: number): string {
-  if (!ms || ms <= 0) return '—'
-  const s = Math.round(ms / 1000)
-  if (s < 60) return `${s} 秒`
-  if (s < 3600) return `${Math.floor(s / 60)} 分 ${s % 60} 秒`
-  return `${Math.floor(s / 3600)} 小时 ${Math.floor((s % 3600) / 60)} 分`
-}
 
 function downloadManifestTemplate() {
   // BOM 让 Excel 直接识别 UTF-8

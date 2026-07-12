@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import { getBatchStatus, getCaseDetail, getImageUrl, getGradcamUrl } from '@/api/client'
+import { getBatchStatus, getCaseDetail, getImageUrl } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
-import ClassBadge, { classFromLabel } from '@/components/ClassBadge'
+import ClassBadge from '@/components/ClassBadge'
 import ProbabilityBars from '@/components/ProbabilityBars'
-import type { BatchResultItem, CaseDetail as CaseDetailType } from '@/lib/types'
+import { classFromLabel } from '@/lib/classification'
+import type { BatchResultItem } from '@/lib/types'
 
 const CLASS_COLORS: Record<string, string> = {
   normal: 'border-success-border bg-success-bg text-success-text',

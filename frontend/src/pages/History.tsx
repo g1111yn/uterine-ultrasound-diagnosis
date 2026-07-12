@@ -11,7 +11,8 @@ import {
 } from 'lucide-react'
 import { getCases } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
-import ClassBadge, { classFromLabel } from '@/components/ClassBadge'
+import ClassBadge from '@/components/ClassBadge'
+import { classFromLabel } from '@/lib/classification'
 import type { PredictedClass, CaseListParams } from '@/lib/types'
 
 const classOptions: { value: string; label: string }[] = [
