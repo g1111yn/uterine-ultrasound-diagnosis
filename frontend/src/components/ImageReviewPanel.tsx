@@ -37,12 +37,14 @@ function StableImage({ src, alt, errorText }: StableImageProps) {
   )
 }
 
-export default function ImageReviewPanel({ images }: Props) {
-  const [activeIdx, setActiveIdx] = useState(0)
-  const safeActiveIdx = activeIdx < images.length ? activeIdx : 0
-  const activeImage = images[safeActiveIdx]
+function ImageReviewCollection({ images }: Props) {
+  const [activeImageId, setActiveImageId] = useState<string | null>(
+    images[0]?.image_id ?? null,
+  )
+  const activeIdx = images.findIndex((image) => image.image_id === activeImageId)
+  const displayIdx = activeIdx >= 0 ? activeIdx : 0
+  const activeImage = images[displayIdx]
   const imagePrediction = activeImage?.per_image_prediction ?? null
-  const displayIdx = activeImage ? safeActiveIdx : 0
 
   if (!activeImage) {
     return (
@@ -98,7 +100,7 @@ export default function ImageReviewPanel({ images }: Props) {
           <button
             key={image.image_id}
             type="button"
-            onClick={() => setActiveIdx(index)}
+            onClick={() => setActiveImageId(image.image_id)}
             aria-label={`查看第 ${index + 1} 张图像`}
             aria-pressed={index === displayIdx}
             className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-md border transition-colors ${
@@ -142,4 +144,10 @@ export default function ImageReviewPanel({ images }: Props) {
       )}
     </div>
   )
+}
+
+export default function ImageReviewPanel({ images }: Props) {
+  const collectionSignature = JSON.stringify(images.map((image) => image.image_id))
+
+  return <ImageReviewCollection key={collectionSignature} images={images} />
 }

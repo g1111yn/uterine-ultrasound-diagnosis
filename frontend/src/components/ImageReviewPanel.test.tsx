@@ -51,6 +51,17 @@ const images: CaseImage[] = [
   },
 ]
 
+function renamedImage(image: CaseImage, imageId: string): CaseImage {
+  return {
+    ...image,
+    image_id: imageId,
+    original_filename: `${imageId}.png`,
+    per_image_prediction: image.per_image_prediction
+      ? { ...image.per_image_prediction, image_id: imageId }
+      : null,
+  }
+}
+
 describe('ImageReviewPanel', () => {
   it('defaults to the first image and switches image, heatmap, and prediction together', async () => {
     const user = userEvent.setup()
@@ -102,5 +113,55 @@ describe('ImageReviewPanel', () => {
     const placeholder = screen.getByText('原图加载失败')
     expect(placeholder).toBeVisible()
     expect(placeholder).toHaveClass('aspect-[4/3]')
+  })
+
+  it('resets to the first image when a same-length collection replaces the case', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<ImageReviewPanel images={images} />)
+    await user.click(screen.getByRole('button', { name: '查看第 2 张图像' }))
+
+    const replacement = [
+      renamedImage(images[0], 'case-b-1'),
+      renamedImage(images[1], 'case-b-2'),
+    ]
+    rerender(<ImageReviewPanel images={replacement} />)
+
+    expect(screen.getByRole('img', { name: '原图 1' })).toHaveAttribute(
+      'src',
+      '/api/images/case-b-1',
+    )
+  })
+
+  it('resets to the new first image when the collection is reordered', async () => {
+    const user = userEvent.setup()
+    const third = renamedImage(images[0], 'image-3')
+    const initial = [...images, third]
+    const { rerender } = render(<ImageReviewPanel images={initial} />)
+    await user.click(screen.getByRole('button', { name: '查看第 2 张图像' }))
+
+    rerender(<ImageReviewPanel images={[third, images[0], images[1]]} />)
+
+    expect(screen.getByRole('img', { name: '原图 1' })).toHaveAttribute(
+      'src',
+      '/api/images/image-3',
+    )
+  })
+
+  it('does not restore an old index after the collection shrinks and grows', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<ImageReviewPanel images={images} />)
+    await user.click(screen.getByRole('button', { name: '查看第 2 张图像' }))
+
+    rerender(<ImageReviewPanel images={[images[0]]} />)
+    expect(screen.getByRole('img', { name: '原图 1' })).toHaveAttribute(
+      'src',
+      '/api/images/image-1',
+    )
+
+    rerender(<ImageReviewPanel images={images} />)
+    expect(screen.getByRole('img', { name: '原图 1' })).toHaveAttribute(
+      'src',
+      '/api/images/image-1',
+    )
   })
 })

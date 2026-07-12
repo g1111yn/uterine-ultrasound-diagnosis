@@ -52,4 +52,12 @@ describe('WorkspaceContainer', () => {
       'mx-auto',
     )
   })
+
+  it('merges an explicit max width without retaining the default conflict', () => {
+    render(<WorkspaceContainer className="max-w-6xl">窄工作区</WorkspaceContainer>)
+
+    const container = screen.getByText('窄工作区')
+    expect(container).toHaveClass('w-full', 'max-w-6xl', 'mx-auto')
+    expect(container).not.toHaveClass('max-w-[1600px]')
+  })
 })
