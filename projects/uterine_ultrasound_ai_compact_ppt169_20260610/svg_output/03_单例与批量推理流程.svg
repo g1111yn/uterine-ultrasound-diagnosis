@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <clipPath id="workflowClip">
+      <rect x="52" y="128" width="1176" height="414" rx="8"/>
+    </clipPath>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#F7FAF9"/>
+    <rect x="0" y="0" width="1280" height="92" fill="#FFFFFF"/>
+    <rect x="0" y="91" width="1280" height="1" fill="#A9B7B3" fill-opacity="0.55"/>
+  </g>
+
+  <g id="header">
+    <text x="52" y="48" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="32" font-weight="bold" fill="#1F2933">优先级队列让医生即时操作不被批量任务阻塞</text>
+    <text x="52" y="78" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#64748B">单例 priority=0，批量 priority=5；模型调用由单 worker 串行化，聚合任务在全部图像完成后触发</text>
+    <text x="1228" y="54" text-anchor="end" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" font-weight="bold" fill="#00796B">WORKFLOW</text>
+  </g>
+
+  <g id="figure-workflow">
+    <rect x="52" y="128" width="1176" height="414" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <image href="../images/fig_inference_workflow.png" x="60" y="143" width="1160" height="406" preserveAspectRatio="xMidYMid meet" clip-path="url(#workflowClip)"/>
+  </g>
+
+  <g id="single-case-block">
+    <rect x="52" y="571" width="365" height="96" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <use data-icon="tabler-outline/clipboard-check" x="78" y="596" width="32" height="32" fill="#0F4D92" stroke-width="2"/>
+    <text x="124" y="611" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" font-weight="bold" fill="#1F2933">单例推理：202 + task_id</text>
+    <text x="124" y="641" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#64748B">上传 1-30 张图，前端轮询任务状态，完成后读取病例详情。</text>
+  </g>
+
+  <g id="batch-block">
+    <rect x="458" y="571" width="365" height="96" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <use data-icon="tabler-outline/route" x="484" y="596" width="32" height="32" fill="#D08A24" stroke-width="2"/>
+    <text x="530" y="611" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" font-weight="bold" fill="#1F2933">批量推理：ZIP 安全流水线</text>
+    <text x="530" y="641" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#64748B">manifest 校验、zip-bomb 防护、限流、取消和重启失败保护。</text>
+  </g>
+
+  <g id="aggregation-block">
+    <rect x="864" y="571" width="364" height="96" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <use data-icon="tabler-outline/users" x="890" y="596" width="32" height="32" fill="#B64342" stroke-width="2"/>
+    <text x="936" y="611" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" font-weight="bold" fill="#1F2933">患者级聚合：可插拔策略</text>
+    <text x="936" y="641" font-family='Consolas, monospace' font-size="13" fill="#64748B">mean / max_severity / majority_vote</text>
+  </g>
+
+  <g id="footer">
+    <text x="52" y="700" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="11" fill="#94A3B8">Implementation scan: backend/app/services/inference_queue.py, batch_pipeline.py, api/predict.py</text>
+    <text x="1228" y="700" text-anchor="end" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="11" fill="#94A3B8">03 / 04</text>
+  </g>
+</svg>

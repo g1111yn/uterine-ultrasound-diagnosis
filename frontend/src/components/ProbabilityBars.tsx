@@ -19,10 +19,11 @@ interface Props {
 }
 
 export default function ProbabilityBars({ probabilities }: Props) {
+  if (!probabilities) return null
   return (
     <div className="space-y-1.5">
       {items.map((item) => {
-        const value = probabilities[item.key]
+        const value = probabilities[item.key] ?? 0
         return (
           <div key={item.key} className="flex items-center gap-2.5 text-xs">
             <span className="w-[78px] text-text-secondary">{item.label}</span>

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B" />
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    
+  <g transform="translate(84.0, 82.0) scale(1.75)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M3 4l18 0" />
+    <path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10" />
+    <path d="M12 16l0 4" />
+    <path d="M9 20l6 0" />
+    <path d="M8 12l3 -3l2 2l3 -3" />
+  </g>
+    <text x="146" y="116" font-family="Georgia, Microsoft YaHei, serif" font-size="48" font-weight="700" fill="#1F1E1D">下一步从可用系统走向可验证、可集成、可持续改进</text>
+    <text x="146" y="158" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" fill="#6B6864">后续演进应聚焦临床验证、系统集成和模型治理，而不是只增加页面功能。</text>
+  </g>
+
+  <g id="roadmap-line">
+    <line x1="154" y1="360" x2="1126" y2="360" stroke="#00796B" stroke-width="4" marker-end="url(#arrowHead)" />
+    <circle cx="238" cy="360" r="20" fill="#F7F6F0" stroke="#00796B" stroke-width="4" />
+    <circle cx="640" cy="360" r="20" fill="#F7F6F0" stroke="#C15F3C" stroke-width="4" />
+    <circle cx="1010" cy="360" r="20" fill="#F7F6F0" stroke="#2F7C95" stroke-width="4" />
+  </g>
+
+  <g id="near-term">
+    <text x="238" y="302" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="32" font-weight="700" fill="#00796B">近期</text>
+    <text x="238" y="422" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">验证与打磨</text>
+    <text x="238" y="460" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">真实病例验证</text>
+    <text x="238" y="488" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">界面细节</text>
+    <text x="238" y="516" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">报告模板和部署文档</text>
+  </g>
+
+  <g id="mid-term">
+    <text x="640" y="302" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="32" font-weight="700" fill="#C15F3C">中期</text>
+    <text x="640" y="422" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">集成与流程化</text>
+    <text x="640" y="460" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">院内账号接入</text>
+    <text x="640" y="488" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">影像系统或归档流程</text>
+    <text x="640" y="516" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">批量工作流优化</text>
+  </g>
+
+  <g id="long-term">
+    <text x="1010" y="302" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="32" font-weight="700" fill="#2F7C95">长期</text>
+    <text x="1010" y="422" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">治理与扩展</text>
+    <text x="1010" y="460" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">模型版本治理</text>
+    <text x="1010" y="488" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">质控面板</text>
+    <text x="1010" y="516" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">更多病种或多中心验证</text>
+  </g>
+
+  <g id="closing-line">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M332,594 H948 A24,24 0 0 1 972,618 V618 A24,24 0 0 1 948,642 H332 A24,24 0 0 1 308,618 V618 A24,24 0 0 1 332,594 Z" />
+    <text x="640" y="625" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" fill="#1F1E1D">让 AI 能力稳定进入临床流程，才是项目真正的交付终点。</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Roadmap for clinical validation, integration, and model governance</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">12 / 12</text>
+  </g>
+</svg>

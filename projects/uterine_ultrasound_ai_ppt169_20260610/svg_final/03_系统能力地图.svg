@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">一个系统覆盖“上传、推理、解释、报告、运维”闭环</text>
+    <rect x="56" y="94" width="720" height="2" fill="#00796B" />
+    <text x="56" y="126" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">项目价值来自模型能力与临床工作流的结合，而不是单一分类器。</text>
+  </g>
+
+  <g id="center-loop">
+    <circle cx="640" cy="378" r="138" fill="#FFFFFF" stroke="#D8D6CC" stroke-width="1.5" />
+    <circle cx="640" cy="378" r="102" fill="#E6F3F0" stroke="#00796B" stroke-width="2" />
+    
+  <g transform="translate(610.0, 307.0) scale(2.5)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+    <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" />
+    <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+  </g>
+    <text x="640" y="406" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="30" font-weight="700" fill="#1F1E1D">患者级闭环</text>
+    <text x="640" y="438" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#6B6864">输入 → 推理 → 解释 → 报告 → 复核</text>
+  </g>
+
+  <g id="connectors">
+    <line x1="520" y1="334" x2="360" y2="248" stroke="#D8D6CC" stroke-width="2" />
+    <line x1="640" y1="240" x2="640" y2="180" stroke="#D8D6CC" stroke-width="2" />
+    <line x1="760" y1="334" x2="922" y2="248" stroke="#D8D6CC" stroke-width="2" />
+    <line x1="538" y1="454" x2="374" y2="528" stroke="#D8D6CC" stroke-width="2" />
+    <line x1="742" y1="454" x2="906" y2="528" stroke="#D8D6CC" stroke-width="2" />
+  </g>
+
+  <g id="cap-single">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M136,180 H404 A16,16 0 0 1 420,196 V290 A16,16 0 0 1 404,306 H136 A16,16 0 0 1 120,290 V196 A16,16 0 0 1 136,180 Z" />
+    
+  <g transform="translate(146.0, 206.0) scale(1.4166666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M6 4h-1a2 2 0 0 0 -2 2v3.5a5.5 5.5 0 0 0 11 0v-3.5a2 2 0 0 0 -2 -2h-1" />
+    <path d="M8 15a6 6 0 1 0 12 0v-3" />
+    <path d="M11 3v2" />
+    <path d="M6 3v2" />
+    <path d="M18 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  </g>
+    <text x="196" y="226" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">单例推理</text>
+    <text x="196" y="257" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">1-30 张图像 · 患者级聚合</text>
+    <rect x="146" y="276" width="220" height="2" fill="#E6F3F0" />
+  </g>
+
+  <g id="cap-batch">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M506,120 H774 A16,16 0 0 1 790,136 V230 A16,16 0 0 1 774,246 H506 A16,16 0 0 1 490,230 V136 A16,16 0 0 1 506,120 Z" />
+    
+  <g transform="translate(516.0, 146.0) scale(1.4166666666666667)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+    <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    <path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />
+  </g>
+    <text x="566" y="166" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">批量推理</text>
+    <text x="566" y="197" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">ZIP + manifest.csv · 异步排队</text>
+    <rect x="516" y="216" width="220" height="2" fill="#E6F1FB" />
+  </g>
+
+  <g id="cap-explain">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M876,180 H1144 A16,16 0 0 1 1160,196 V290 A16,16 0 0 1 1144,306 H876 A16,16 0 0 1 860,290 V196 A16,16 0 0 1 876,180 Z" />
+    
+  <g transform="translate(886.0, 206.0) scale(1.4166666666666667)" fill="none" stroke="#C15F3C" stroke-width="2">
+    <path d="M3 12h4.5l1.5 -6l4 12l2 -9l1.5 3h4.5" />
+  </g>
+    <text x="936" y="226" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">结果解释</text>
+    <text x="936" y="257" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">逐图预测 · Grad-CAM 热力图</text>
+    <rect x="886" y="276" width="220" height="2" fill="#FCEDE8" />
+  </g>
+
+  <g id="cap-report">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M170,508 H438 A16,16 0 0 1 454,524 V618 A16,16 0 0 1 438,634 H170 A16,16 0 0 1 154,618 V524 A16,16 0 0 1 170,508 Z" />
+    
+  <g transform="translate(180.0, 534.0) scale(1.4166666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+    <path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" />
+    <path d="M10 14l4 0" />
+    <path d="M12 12l0 4" />
+  </g>
+    <text x="230" y="554" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">病例与报告</text>
+    <text x="230" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">历史检索 · 医生判断 · PDF</text>
+    <rect x="180" y="604" width="220" height="2" fill="#E6F3F0" />
+  </g>
+
+  <g id="cap-ops">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M842,508 H1110 A16,16 0 0 1 1126,524 V618 A16,16 0 0 1 1110,634 H842 A16,16 0 0 1 826,618 V524 A16,16 0 0 1 842,508 Z" />
+    
+  <g transform="translate(852.0, 534.0) scale(1.4166666666666667)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06" />
+    <path d="M15 19l2 2l4 -4" />
+  </g>
+    <text x="902" y="554" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">管理保障</text>
+    <text x="902" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">认证 · 审计 · 指标 · 备份</text>
+    <rect x="852" y="604" width="220" height="2" fill="#E6F1FB" />
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: project README and local codebase analysis</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">03 / 12</text>
+  </g>
+</svg>

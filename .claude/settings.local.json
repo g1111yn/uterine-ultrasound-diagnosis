@@ -28,7 +28,23 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['case_id']\\)\")",
       "Bash(python3 -c ' *)",
       "Bash(rm -f /Users/sleepy_gyn/Documents/医院超声诊断项目/backend/data/app.db)",
-      "Bash(echo \"PID=$!\")"
+      "Bash(echo \"PID=$!\")",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(mkdir -p /tmp/deploy_v2)",
+      "Bash(tar -xzf ~/Downloads/deploy_package_20260518.tar.gz -C /tmp/deploy_v2)",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/deploy_v2/deploy_package_20260518/**)",
+      "Bash(backend/venv/bin/python -c \"import modelscope; print\\('modelscope', modelscope.__version__\\)\")",
+      "Bash(python3 -c \"import torch, torchvision; print\\('torch', torch.__version__\\); print\\('torchvision', torchvision.__version__\\)\")",
+      "Bash(python3 -c \"import modelscope; print\\('modelscope', modelscope.__version__\\)\")",
+      "Bash(python3 *)",
+      "Bash(python -c ' *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "Bash(git config *)",
+      "Bash(python -c \"from app.services.batch_pipeline import submit_batch, _start_serial_batch_worker; print\\('OK'\\)\")"
     ]
   }
 }

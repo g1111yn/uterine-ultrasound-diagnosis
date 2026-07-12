@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="coverWash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#DCEDEA" stop-opacity="0.78"/>
+      <stop offset="62%" stop-color="#F7FAF9" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#DDE9F5" stop-opacity="0.85"/>
+    </linearGradient>
+    <marker id="arrowPrimary" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#00796B"/>
+    </marker>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#F7FAF9"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#coverWash)"/>
+    <circle cx="1110" cy="108" r="80" fill="#DDE9F5" fill-opacity="0.65"/>
+    <circle cx="118" cy="612" r="120" fill="#DCEDEA" fill-opacity="0.55"/>
+  </g>
+
+  <g id="title-block">
+    <use data-icon="tabler-outline/stethoscope" x="60" y="52" width="38" height="38" fill="#00796B" stroke-width="2"/>
+    <text x="112" y="78" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" font-weight="bold" fill="#00796B">医院妇科超声 AI 辅助诊断</text>
+    <text x="58" y="170" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="66" font-weight="bold" fill="#1F2933">
+      <tspan x="58" dy="0">子宫超声</tspan>
+      <tspan x="58" dy="76">辅助诊断系统</tspan>
+    </text>
+    <rect x="60" y="283" width="480" height="4" rx="2" fill="#00796B"/>
+    <text x="60" y="333" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="23" fill="#1F2933">
+      <tspan x="60" dy="0">多模态模型把超声图像、检查文本、患者级聚合</tspan>
+      <tspan x="60" dy="34">和临床工作流接入同一套可部署系统。</tspan>
+    </text>
+  </g>
+
+  <g id="capability-grid">
+    <rect x="640" y="76" width="272" height="136" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <use data-icon="tabler-outline/photo" x="666" y="104" width="34" height="34" fill="#0F4D92" stroke-width="2"/>
+    <text x="718" y="126" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">多格式图像输入</text>
+    <text x="666" y="168" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">JPEG / PNG / BMP / TIFF / DICOM</text>
+
+    <rect x="940" y="76" width="272" height="136" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <use data-icon="tabler-outline/brain" x="966" y="104" width="34" height="34" fill="#00796B" stroke-width="2"/>
+    <text x="1018" y="126" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">V2 多模态模型</text>
+    <text x="966" y="168" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">EfficientNet-B3 + 医学 BERT</text>
+
+    <rect x="640" y="242" width="272" height="136" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <use data-icon="tabler-outline/route" x="666" y="270" width="34" height="34" fill="#D08A24" stroke-width="2"/>
+    <text x="718" y="292" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">单例 + 批量推理</text>
+    <text x="666" y="334" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">优先级队列，异步状态轮询</text>
+
+    <rect x="940" y="242" width="272" height="136" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <use data-icon="tabler-outline/file-report" x="966" y="270" width="34" height="34" fill="#B64342" stroke-width="2"/>
+    <text x="1018" y="292" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">解释与报告闭环</text>
+    <text x="966" y="334" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">Grad-CAM、医生判断、PDF 报告</text>
+  </g>
+
+  <g id="workflow-mini">
+    <rect x="60" y="444" width="548" height="104" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <text x="92" y="484" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" font-weight="bold" fill="#1F2933">临床输入</text>
+    <text x="258" y="484" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" font-weight="bold" fill="#1F2933">AI 推理</text>
+    <text x="422" y="484" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" font-weight="bold" fill="#1F2933">医生复核</text>
+    <line x1="184" y1="478" x2="238" y2="478" stroke="#00796B" stroke-width="2" marker-end="url(#arrowPrimary)"/>
+    <line x1="344" y1="478" x2="402" y2="478" stroke="#00796B" stroke-width="2" marker-end="url(#arrowPrimary)"/>
+    <text x="92" y="518" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#64748B">图像 + 检查方式 + 检查所见</text>
+    <text x="258" y="518" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#64748B">三分类概率 + 热力解释</text>
+    <text x="422" y="518" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#64748B">诊断记录 + PDF 报告</text>
+  </g>
+
+  <g id="kpi-strip">
+    <rect x="640" y="444" width="176" height="104" rx="8" fill="#1F2933"/>
+    <text x="668" y="486" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="40" font-weight="bold" fill="#FFFFFF">10,587</text>
+    <text x="668" y="520" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#DCEDEA">训练患者</text>
+
+    <rect x="834" y="444" width="176" height="104" rx="8" fill="#00796B"/>
+    <text x="862" y="486" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="40" font-weight="bold" fill="#FFFFFF">196k</text>
+    <text x="862" y="520" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#DCEDEA">训练图像</text>
+
+    <rect x="1028" y="444" width="184" height="104" rx="8" fill="#B64342"/>
+    <text x="1056" y="486" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="40" font-weight="bold" fill="#FFFFFF">0.8600</text>
+    <text x="1056" y="520" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="14" fill="#F4D9D7">Fold 3 EMA pat_acc</text>
+  </g>
+
+  <g id="footer">
+    <text x="60" y="682" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="11" fill="#94A3B8">Source: project README and implementation scan, 2026-06-10</text>
+    <text x="1200" y="682" text-anchor="end" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="11" fill="#94A3B8">01 / 04</text>
+  </g>
+</svg>

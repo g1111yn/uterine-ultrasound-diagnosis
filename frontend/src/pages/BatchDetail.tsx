@@ -127,7 +127,7 @@ function PatientDetail({ caseId }: { caseId: string }) {
               confidence={data.prediction.confidence}
             />
           </div>
-          <ProbabilityBars probs={data.prediction.probabilities} />
+          <ProbabilityBars probabilities={data.prediction.probabilities} />
         </div>
       )}
 

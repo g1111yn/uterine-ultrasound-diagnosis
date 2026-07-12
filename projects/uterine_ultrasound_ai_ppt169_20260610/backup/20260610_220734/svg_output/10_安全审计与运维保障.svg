@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#F7F6F0"/>
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">权限、审计、日志和恢复构成上线后的安全网</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">临床系统不仅要能推理，还要能解释“谁在何时做了什么”和“故障时如何恢复”。</text>
+  </g>
+
+  <g id="ops-matrix">
+    <rect x="56" y="154" width="556" height="204" rx="18" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <rect x="56" y="154" width="10" height="204" rx="5" fill="#00796B"/>
+    <use data-icon="tabler-outline/shield-check" x="94" y="190" width="40" height="40" fill="#00796B" stroke-width="2"/>
+    <text x="154" y="216" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">认证控制</text>
+    <text x="94" y="270" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#1F1E1D">bcrypt 密码哈希，HttpOnly + SameSite 会话 cookie。</text>
+    <text x="94" y="304" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">连续失败锁定，支持强制改密和管理员重置。</text>
+
+    <rect x="668" y="154" width="556" height="204" rx="18" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <rect x="668" y="154" width="10" height="204" rx="5" fill="#2F7C95"/>
+    <use data-icon="tabler-outline/checklist" x="706" y="190" width="40" height="40" fill="#2F7C95" stroke-width="2"/>
+    <text x="766" y="216" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">审计留痕</text>
+    <text x="706" y="270" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#1F1E1D">登录、登出、创建病例、用户管理全量记录。</text>
+    <text x="706" y="304" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">审计日志可检索，并支持 CSV 导出。</text>
+
+    <rect x="56" y="394" width="556" height="204" rx="18" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <rect x="56" y="394" width="10" height="204" rx="5" fill="#C15F3C"/>
+    <use data-icon="tabler-outline/chart-infographic" x="94" y="430" width="40" height="40" fill="#C15F3C" stroke-width="2"/>
+    <text x="154" y="456" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">可观测性</text>
+    <text x="94" y="510" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#1F1E1D">structlog JSON 输出，request_id 贯穿一次请求链路。</text>
+    <text x="94" y="544" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">/api/health · /api/metrics · journalctl</text>
+
+    <rect x="668" y="394" width="556" height="204" rx="18" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <rect x="668" y="394" width="10" height="204" rx="5" fill="#00796B"/>
+    <use data-icon="tabler-outline/database" x="706" y="430" width="40" height="40" fill="#00796B" stroke-width="2"/>
+    <text x="766" y="456" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">备份恢复</text>
+    <text x="706" y="510" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#1F1E1D">SQLite .backup 与 uploads 增量 rsync 保留 30 天。</text>
+    <text x="706" y="544" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">Runbook 明确服务挂掉、锁表、磁盘满、密码丢失的预案。</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: docs/runbook.md, auth and audit services</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">10 / 12</text>
+  </g>
+</svg>

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="clinical-tech">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>子宫超声辅助诊断系统 · HTML PPT</title>
+  <link rel="stylesheet" href="./assets/html-ppt/fonts.css">
+  <link rel="stylesheet" href="./assets/html-ppt/base.css">
+  <link rel="stylesheet" id="theme-link" href="./assets/html-ppt/themes/minimal-white.css">
+  <link rel="stylesheet" href="./assets/html-ppt/animations/animations.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body class="clinical-deck" data-themes="minimal-white,corporate-clean,engineering-whiteprint" data-theme-base="./assets/html-ppt/themes/">
+<div class="deck-stage">
+<div class="deck">
+
+  <section class="slide slide-cover" data-title="项目总览">
+    <div class="slide-topline">
+      <span>医院妇科超声 AI 辅助诊断</span>
+      <span>V2 多模态 · 单例 / 批量 · 审计闭环</span>
+    </div>
+
+    <div class="cover-grid">
+      <div class="cover-copy" data-anim="fade-right">
+        <p class="kicker">Clinical AI Workflow</p>
+        <h1>子宫超声辅助诊断系统</h1>
+        <p class="lede">
+          面向医院妇科超声检查，把图像、检查文本、患者级聚合和临床工作流整合为可部署的 AI 辅助诊断工具。
+        </p>
+        <div class="capability-ribbon">
+          <span>JPEG / PNG / BMP / TIFF / DICOM</span>
+          <span>正常 / 子宫内膜癌 / 息肉</span>
+          <span>Grad-CAM + PDF 报告</span>
+        </div>
+      </div>
+
+      <div class="interface-board" data-anim="fade-left">
+        <div class="ui-window">
+          <div class="ui-bar">
+            <span></span><span></span><span></span>
+            <b>单例推理</b>
+          </div>
+          <div class="ui-body">
+            <div class="upload-zone">
+              <div class="upload-icon"></div>
+              <strong>上传 1-30 张超声图像</strong>
+              <small>检查方式 + 检查所见 → BERT 文本向量</small>
+            </div>
+            <div class="result-card">
+              <div class="result-head">
+                <span>病人级预测</span>
+                <b class="risk">息肉 0.74</b>
+              </div>
+              <div class="bars-mini">
+                <i style="--w:28%"></i>
+                <i style="--w:18%"></i>
+                <i style="--w:74%"></i>
+              </div>
+            </div>
+            <div class="heatmap-strip">
+              <div class="scan-plane"></div>
+              <span>原图</span>
+              <span>Grad-CAM</span>
+              <span>医生判断</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stream-console">
+          <div class="console-grid"></div>
+          <div class="stream-row row-1"><span></span><b>Case</b><em>task_id</em></div>
+          <div class="stream-row row-2"><span></span><b>队列</b><em>优先级=0</em></div>
+          <div class="stream-row row-3"><span></span><b>Model</b><em>softmax</em></div>
+          <div class="stream-row row-4"><span></span><b>Audit</b><em>CSV</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-strip anim-stagger-list" data-anim-target>
+      <div class="kpi"><b>10,587</b><span>训练患者</span></div>
+      <div class="kpi"><b>196,255</b><span>超声图像</span></div>
+      <div class="kpi"><b>Fold 3 EMA</b><span>pat_acc = 0.8600</span></div>
+      <div class="kpi"><b>1.2s / 图</b><span>CPU 推理约值</span></div>
+    </div>
+
+    <div class="deck-footer">
+      <span>README.md + backend/frontend implementation</span>
+      <span class="slide-number" data-current="1" data-total="4"></span>
+    </div>
+    <aside class="notes">
+      <p>这一页先建立项目全貌。它不是单纯的模型 demo，而是围绕医院妇科超声的完整工作流：医生上传图像，系统结合检查方式和检查所见做多模态推理，再把逐图结果聚合成患者级诊断。</p>
+      <p>重点可以放在三个数字：训练规模是 10,587 例患者、196,255 张图像；当前推理使用 Fold 3 EMA 权重，患者级准确率记录为 0.8600；前端同时支持单例即时推理和 ZIP 批量推理。</p>
+      <p>右侧是界面质感的抽象：左边输入和结果，右边数据流和审计流，后面三页会分别展开方法、队列和治理闭环。</p>
+    </aside>
+  </section>
+
+  <section class="slide slide-method" data-title="V2 多模态方法">
+    <div class="slide-topline">
+      <span>V2 多模态模型</span>
+      <span>图像主导门控融合 · EfficientNet-B3 + Medical BERT</span>
+    </div>
+
+    <div class="section-heading" data-anim="fade-down">
+      <p class="kicker">Method</p>
+      <h2>图像证据是主轴，文本在门控中补充上下文。</h2>
+      <p>300×300 图像输入 EfficientNet-B3；检查方式与检查所见清洗拼接后送入医学 BERT。两路特征经 ImageDominantGatedFusion 生成三类 softmax。</p>
+    </div>
+
+    <div class="method-layout refined">
+      <div class="method-flow-interactive" data-anim="fade-up" aria-label="V2 多模态交互式数据流">
+        <div class="method-focus-layer"></div>
+        <button class="flow-node node-image active" data-step="image">
+          <span>图像输入</span>
+          <b>超声图像</b>
+          <em>300 x 300</em>
+        </button>
+        <button class="flow-node node-text" data-step="text">
+          <span>文本输入</span>
+          <b>检查方式 + 所见</b>
+          <em>清洗拼接</em>
+        </button>
+        <button class="flow-node node-image-encoder" data-step="image_encoder">
+          <span>图像编码器</span>
+          <b>EfficientNet-B3</b>
+          <em>1536 维</em>
+        </button>
+        <button class="flow-node node-text-encoder" data-step="text_encoder">
+          <span>文本编码器</span>
+          <b>医学 BERT</b>
+          <em>768 维 CLS</em>
+        </button>
+        <button class="flow-node node-gate" data-step="gate">
+          <span>门控融合</span>
+          <b>图像主导</b>
+          <em>g·图像 + (1-g)·文本</em>
+        </button>
+        <button class="flow-node node-classifier" data-step="classifier">
+          <span>分类器</span>
+          <b>三类概率</b>
+          <em>正常 / 内膜癌 / 息肉</em>
+        </button>
+        <svg class="method-flow-lines" viewBox="0 0 806 404" aria-hidden="true">
+          <path class="route route-image" d="M187 74 C236 74 268 77 305 77"></path>
+          <path class="route route-text" d="M187 327 C238 327 269 327 305 327"></path>
+          <path class="route route-to-gate-a" d="M447 77 C484 92 496 124 520 133"></path>
+          <path class="route route-to-gate-b" d="M447 327 C484 304 496 232 520 210"></path>
+          <path class="route route-to-classifier" d="M583 171 C612 171 635 171 661 171"></path>
+        </svg>
+        <div class="data-particle particle-a">图像特征</div>
+        <div class="data-particle particle-b">文本向量</div>
+        <div class="data-particle particle-c">融合特征</div>
+      </div>
+
+      <div class="method-explainer" data-anim="fade-left">
+        <div class="claim-card">
+          <span>核心结论</span>
+          <b>不是“图像 + 文本平均融合”，而是让图像证据决定主方向，文本只补充临床上下文。</b>
+        </div>
+        <div class="method-step-panel">
+          <div class="method-step-stage">当前步骤</div>
+          <div class="step-detail is-active" data-step-panel="image">
+            <b>1. 图像证据先进入主干</b>
+            <span>DICOM / JPG / PNG 等图像统一转 RGB，Resize 到 300 x 300，保持与训练管线一致。</span>
+          </div>
+          <div class="step-detail" data-step-panel="image_encoder">
+            <b>2. EfficientNet-B3 提取形态特征</b>
+            <span>最后特征维度为 1536，承担病灶形态、边界、回声模式等主要视觉证据。</span>
+          </div>
+          <div class="step-detail" data-step-panel="text">
+            <b>3. 文本输入做临床上下文</b>
+            <span>检查方式与检查所见经过 clean_check_project / clean_check_seen 清洗后拼接；空文本走零向量。</span>
+          </div>
+          <div class="step-detail" data-step-panel="text_encoder">
+            <b>4. 医学 BERT 输出 CLS 向量</b>
+            <span>阿里医学 BERT 产生 768 维文本向量，让“经阴道三维超声”等检查背景进入融合层。</span>
+          </div>
+          <div class="step-detail" data-step-panel="gate">
+            <b>5. gate 学习文本参与强度</b>
+            <span>两路特征先投影到 256 维，再学习 g 值：图像主导，文本只在有价值时补充。</span>
+          </div>
+          <div class="step-detail" data-step-panel="classifier">
+            <b>6. 输出三类 softmax 概率</b>
+            <span>分类器给出正常、子宫内膜癌、息肉三类概率；患者级结果由逐图预测聚合得到。</span>
+          </div>
+        </div>
+        <div class="method-formula">
+          <b>融合逻辑</b>
+          <span>f = g · f_image + (1 - g) · f_text；分类器同时利用图像分支和融合分支。</span>
+        </div>
+        <div class="method-dimension-strip">
+          <div><b>1536 → 256</b><span>图像投影</span></div>
+          <div><b>768 → 256</b><span>文本投影</span></div>
+          <div><b>512 → 3</b><span>分类输出</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="deck-footer">
+      <span>Text cleaning: clean_check_project / clean_check_seen / build_clinical_text</span>
+      <span class="slide-number" data-current="2" data-total="4"></span>
+    </div>
+    <aside class="notes">
+      <p>这一页讲方法。这里最重要的是“图像主导”四个字。模型不是把文本和图像平均混在一起，而是先分别投影，再由 gate 学习文本应该补充多少，最后保留图像分支和融合分支共同分类。</p>
+      <p>图像侧是 EfficientNet-B3，输入固定为 300×300，并使用 ImageNet 归一化。文本侧是阿里达摩院医学 BERT，输入是检查方式加检查所见，清洗逻辑和训练管线一致。无文本时系统走纯图像筛查，文本向量为 768 维零向量。</p>
+      <p>最终输出正常、子宫内膜癌、息肉三类概率，后续患者级结果不是单图结果，而是逐图结果再经过聚合策略产生。</p>
+    </aside>
+  </section>
+
+  <section class="slide slide-queue" data-title="单例与批量推理">
+    <div class="slide-topline">
+      <span>推理逻辑与队列</span>
+      <span>返回 202 + task_id · 前端轮询 · 单执行器串行模型调用</span>
+    </div>
+
+    <div class="section-heading compact" data-anim="fade-down">
+      <p class="kicker">Inference Flow</p>
+      <h2>优先级队列让医生即时操作不被批量任务阻塞。</h2>
+      <p>单例任务优先级=0；批量任务优先级=5。模型调用保持单执行器串行，批量按患者逐步推进，单例可在图像间插队。</p>
+    </div>
+
+    <div class="queue-layout">
+      <div class="queue-visual-zh" data-anim="fade-up" aria-label="单例与批量推理队列关系">
+        <div class="q-source q-single">
+          <span>单例提交</span>
+          <b>医生当前病例</b>
+          <em>优先级 = 0</em>
+        </div>
+        <div class="q-source q-batch">
+          <span>批量 ZIP</span>
+          <b>多个患者目录</b>
+          <em>优先级 = 5</em>
+        </div>
+        <div class="q-core q-heap">
+          <span>实现主体</span>
+          <b>优先级堆</b>
+          <em>heapq + counter 排序</em>
+        </div>
+        <div class="q-core q-worker">
+          <span>模型保护</span>
+          <b>单模型执行器</b>
+          <em>串行调用 predict</em>
+        </div>
+        <div class="q-core q-agg">
+          <span>患者级输出</span>
+          <b>聚合策略</b>
+          <em>平均 / 最严重 / 投票</em>
+        </div>
+        <div class="q-core q-detail">
+          <span>前端读取</span>
+          <b>病例详情</b>
+          <em>概率 + Grad-CAM</em>
+        </div>
+        <svg class="q-lines" viewBox="0 0 760 300" aria-hidden="true">
+          <path class="q-path single" d="M183 76 C244 78 286 126 308 151"></path>
+          <path class="q-path batch" d="M183 224 C244 219 286 179 308 157"></path>
+          <path class="q-path main" d="M446 154 C458 154 466 154 476 154"></path>
+          <path class="q-path main" d="M598 146 C628 132 630 104 622 86"></path>
+          <path class="q-path main" d="M598 162 C628 176 630 204 622 224"></path>
+        </svg>
+        <div class="q-packet q-packet-single">单例插队</div>
+        <div class="q-packet q-packet-batch">批量等待</div>
+      </div>
+
+      <div class="queue-sim" data-anim="fade-left">
+        <div class="sim-title">
+          <span>TaskRecord 状态</span>
+          <b>排队 / 运行 / 完成 / 失败</b>
+        </div>
+        <div class="queue-lanes">
+          <div class="lane single-lane">
+            <label>单例病例</label>
+            <div class="token token-a">图1</div>
+            <div class="token token-b">图2</div>
+            <div class="token token-c">聚合</div>
+          </div>
+          <div class="lane batch-lane">
+            <label>批量 ZIP</label>
+            <div class="token token-d">患者1</div>
+            <div class="token token-e">患者2</div>
+            <div class="token token-f">患者3</div>
+          </div>
+        </div>
+        <div class="worker-line">
+          <span>单模型执行器</span>
+          <i></i>
+          <b>串行推理</b>
+        </div>
+        <div class="aggregation-mini">
+          <div><b>平均聚合</b><span>多图概率取均值</span></div>
+          <div><b>最严重优先</b><span>癌概率超阈值即提升风险</span></div>
+          <div><b>多数投票</b><span>按图像预测类别投票</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-grid storage-chain">
+      <div><b>提交建档</b><span>先写 cases / case_images；接口返回 202 + task_id，前端轮询任务状态。</span></div>
+      <div><b>任务状态</b><span>内存 TaskRecord 保存 queued / running / done / failed，计算队列位置和等待时间。</span></div>
+      <div><b>结果落库</b><span>逐图写 per_image_predictions；聚合后写 predictions，病例详情再读取展示。</span></div>
+    </div>
+
+    <div class="deck-footer">
+      <span>backend/app/services/inference_queue.py + batch_pipeline.py + aggregation.py</span>
+      <span class="slide-number" data-current="3" data-total="4"></span>
+    </div>
+    <aside class="notes">
+          <p>这一页讲推理逻辑。后端的核心不是并发跑多个模型，而是把模型调用串行化。这样做是因为模型对象不适合多线程抢占，单执行器能避免稳定性问题。</p>
+      <p>系统用 heap 做优先级队列：单例任务优先级为 0，批量任务优先级为 5。所以医生在单例页面提交时，不会被一个大的批量 ZIP 长时间挡住。批量任务本身按患者串行推进，每个患者又按图像逐张进入队列。</p>
+      <p>单例流程是提交后立即返回 202 和 task_id，前端每秒轮询任务状态。每张图完成后保留图像级预测，所有子任务结束后触发 aggregation task，得到患者级结果。聚合策略有 mean、max_severity 和 majority_vote 三种。</p>
+    </aside>
+  </section>
+
+  <section class="slide slide-governance" data-title="临床闭环与工程保障">
+    <div class="slide-topline">
+      <span>临床闭环、数据库与治理</span>
+      <span>解释 · 报告 · 检索 · 审计 · 运行指标</span>
+    </div>
+
+    <div class="section-heading compact" data-anim="fade-down">
+      <p class="kicker">Clinical Loop</p>
+      <h2>诊断价值来自模型、解释、报告、审计和运维的闭环。</h2>
+      <p>系统不仅输出概率，还保存病例、图像、逐图预测、患者级预测、医生判断、批量任务、会话和审计日志。</p>
+    </div>
+
+    <div class="governance-layout refined">
+      <div class="nature-frame loop-figure" data-anim="fade-up">
+        <img src="./assets/figures/fig_clinical_loop.svg" alt="临床解释与治理闭环图">
+        <div class="loop-orbit orbit-1"></div>
+        <div class="loop-orbit orbit-2"></div>
+        <div class="heat-scan"></div>
+        <div class="governance-callouts">
+          <span class="gc-hotspot gc-model">患者级概率</span>
+          <span class="gc-hotspot gc-heat">热图解释</span>
+          <span class="gc-hotspot gc-audit">审计留痕</span>
+          <span class="gc-hotspot gc-report">报告闭环</span>
+        </div>
+      </div>
+
+      <div class="db-map" data-anim="fade-left">
+        <div class="db-title">存储链路 · SQLite WAL</div>
+        <div class="db-flow-row strong"><b>病例主表</b><span>cases：患者、检查方式、检查所见、批量来源</span></div>
+        <div class="db-flow-row"><b>图像表</b><span>case_images：原图路径、预览、格式、序号</span></div>
+        <div class="db-flow-row"><b>逐图预测</b><span>per_image_predictions：三类概率、Grad-CAM 路径</span></div>
+        <div class="db-flow-row"><b>患者预测</b><span>predictions：聚合策略、患者级概率、最终类别</span></div>
+        <div class="db-flow-row"><b>医生判断</b><span>judgments：最终判断、建议、备注、医生 ID</span></div>
+        <div class="db-flow-row audit-row"><b>审计日志</b><span>audit_logs：登录/建档/用户管理，独立事务写入</span></div>
+      </div>
+    </div>
+
+    <div class="assurance-row anim-stagger-list" data-anim-target>
+      <div class="assurance">
+        <b>解释</b>
+        <span>原图 / Grad-CAM 双栏，缩略图切换逐图查看。</span>
+      </div>
+      <div class="assurance">
+        <b>使用</b>
+        <span>历史按关键词、日期、类别、来源筛选；PDF 报告导出。</span>
+      </div>
+      <div class="assurance">
+        <b>审计</b>
+        <span>登录、病例、用户管理独立事务记录，支持 CSV 导出。</span>
+      </div>
+      <div class="assurance">
+        <b>运维</b>
+        <span>health / metrics 暴露模型加载、队列、P95、DB 和错误指标。</span>
+      </div>
+    </div>
+
+    <div class="deck-footer">
+      <span>FastAPI + SQLAlchemy + SQLite WAL · React + Tailwind + React Query</span>
+      <span class="slide-number" data-current="4" data-total="4"></span>
+    </div>
+    <aside class="notes">
+      <p>最后一页讲闭环。临床系统的价值不是模型单点准确率，而是模型结果能不能进入医生可解释、可追溯、可复核的工作流。</p>
+      <p>病例详情页把原图和 Grad-CAM 放在一起，医生可以切换每张图，同时右侧显示患者级概率和聚合策略。医生判断会作为 Judgment 保存，PDF 报告可以导出，历史记录也能按日期、类别和来源筛选。</p>
+      <p>数据库层面，SQLite 开启 WAL、busy_timeout 和 foreign_keys。核心表包括 cases、case_images、per_image_predictions、predictions、judgments、batch_jobs、sessions 和 audit_logs。审计日志用独立事务写入，即使业务回滚也不会吞掉审计轨迹，管理员页面可以筛选并导出 CSV。</p>
+    </aside>
+  </section>
+
+</div>
+</div>
+
+<script src="./assets/html-ppt/runtime.js"></script>
+<script src="./interactions.js"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B" />
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">前后端、任务队列、模型服务共同支撑临床闭环</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">工程架构围绕可部署、可追踪、可恢复的医院场景设计。</text>
+  </g>
+
+  <g id="architecture">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M76,152 H1204 A20,20 0 0 1 1224,172 V570 A20,20 0 0 1 1204,590 H76 A20,20 0 0 1 56,570 V172 A20,20 0 0 1 76,152 Z" />
+
+    <g id="frontend-layer">
+      <path fill="#E6F3F0" stroke="#D8D6CC" d="M110,210 H258 A16,16 0 0 1 274,226 V490 A16,16 0 0 1 258,506 H110 A16,16 0 0 1 94,490 V226 A16,16 0 0 1 110,210 Z" />
+      <text x="184" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">Frontend</text>
+      <text x="184" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">React 19</text>
+      <text x="184" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">TypeScript</text>
+      <text x="184" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">Vite</text>
+      
+  <g transform="translate(154.0, 382.0) scale(2.5)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M3 4l18 0" />
+    <path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10" />
+    <path d="M12 16l0 4" />
+    <path d="M9 20l6 0" />
+    <path d="M8 12l3 -3l2 2l3 -3" />
+  </g>
+      <text x="184" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">单例 / 批量 / 历史 / 管理</text>
+    </g>
+
+    <line x1="274" y1="358" x2="338" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="api-layer">
+      <path fill="#E6F1FB" stroke="#D8D6CC" d="M364,210 H522 A16,16 0 0 1 538,226 V490 A16,16 0 0 1 522,506 H364 A16,16 0 0 1 348,490 V226 A16,16 0 0 1 364,210 Z" />
+      <text x="443" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">API</text>
+      <text x="443" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">FastAPI</text>
+      <text x="443" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">SQLAlchemy</text>
+      <text x="443" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">Auth / Audit</text>
+      
+  <g transform="translate(413.0, 382.0) scale(2.5)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3" />
+    <path d="M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2" />
+    <path d="M7 8l0 .01" />
+    <path d="M7 16l0 .01" />
+  </g>
+      <text x="443" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">/api/* 路由与静态服务</text>
+    </g>
+
+    <line x1="538" y1="358" x2="604" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="queue-layer">
+      <path fill="#FCEDE8" stroke="#D8D6CC" d="M630,210 H788 A16,16 0 0 1 804,226 V490 A16,16 0 0 1 788,506 H630 A16,16 0 0 1 614,490 V226 A16,16 0 0 1 630,210 Z" />
+      <text x="709" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">Queue</text>
+      <text x="709" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">priority heap</text>
+      <text x="709" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">single worker</text>
+      <text x="709" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">task status</text>
+      
+  <g transform="translate(679.0, 382.0) scale(2.5)" fill="none" stroke="#C15F3C" stroke-width="2">
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+    <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" />
+    <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+  </g>
+      <text x="709" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">单例优先，批量后台</text>
+    </g>
+
+    <line x1="804" y1="358" x2="870" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="model-layer">
+      <path fill="#FFFFFF" stroke="#00796B" stroke-width="2" d="M896,210 H1054 A16,16 0 0 1 1070,226 V490 A16,16 0 0 1 1054,506 H896 A16,16 0 0 1 880,490 V226 A16,16 0 0 1 896,210 Z" />
+      <text x="975" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">AI Model</text>
+      <text x="975" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">PyTorch CPU</text>
+      <text x="975" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">EfficientNet-B3</text>
+      <text x="975" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">Medical BERT</text>
+      
+  <g transform="translate(945.0, 382.0) scale(2.5)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8" />
+    <path d="M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8" />
+    <path d="M17.5 16a3.5 3.5 0 0 0 0 -7h-.5" />
+    <path d="M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0" />
+    <path d="M6.5 16a3.5 3.5 0 0 1 0 -7h.5" />
+    <path d="M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10" />
+  </g>
+      <text x="975" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">三分类 + Grad-CAM</text>
+    </g>
+
+    <line x1="1070" y1="358" x2="1110" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="storage-layer">
+      <path fill="#EFEDE5" stroke="#D8D6CC" d="M1132,210 H1176 A16,16 0 0 1 1192,226 V490 A16,16 0 0 1 1176,506 H1132 A16,16 0 0 1 1116,490 V226 A16,16 0 0 1 1132,210 Z" />
+      
+  <g transform="translate(1138.0, 250.0) scale(1.3333333333333333)" fill="none" stroke="#6B6864" stroke-width="2">
+    <path d="M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" />
+    <path d="M4 6v6a8 3 0 0 0 16 0v-6" />
+    <path d="M4 12v6a8 3 0 0 0 16 0v-6" />
+  </g>
+      <text x="1154" y="318" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">SQLite</text>
+      <text x="1154" y="342" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">WAL</text>
+      <text x="1154" y="390" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">uploads</text>
+      <text x="1154" y="414" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">gradcam</text>
+    </g>
+  </g>
+
+  <g id="ops-band">
+    <path fill="#F7F6F0" stroke="#D8D6CC" d="M150,542 H1130 A16,16 0 0 1 1146,558 V580 A16,16 0 0 1 1130,596 H150 A16,16 0 0 1 134,580 V558 A16,16 0 0 1 150,542 Z" />
+    <text x="168" y="575" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">结构化日志</text>
+    <text x="320" y="575" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">request_id</text>
+    <text x="476" y="575" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">健康检查</text>
+    <text x="630" y="575" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">/api/health</text>
+    <text x="810" y="575" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">指标接口</text>
+    <text x="956" y="575" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">/api/metrics</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: backend and frontend project structure</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">08 / 12</text>
+  </g>
+</svg>

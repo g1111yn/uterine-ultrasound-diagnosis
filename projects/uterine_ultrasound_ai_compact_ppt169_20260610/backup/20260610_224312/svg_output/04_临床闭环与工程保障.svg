@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <clipPath id="loopClip">
+      <rect x="52" y="170" width="700" height="245" rx="8"/>
+    </clipPath>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#F7FAF9"/>
+    <rect x="0" y="0" width="1280" height="720" fill="#DCEDEA" fill-opacity="0.35"/>
+    <circle cx="1180" cy="102" r="132" fill="#DDE9F5" fill-opacity="0.62"/>
+    <circle cx="74" cy="636" r="116" fill="#F4D9D7" fill-opacity="0.45"/>
+  </g>
+
+  <g id="header">
+    <text x="52" y="62" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="32" font-weight="bold" fill="#1F2933">诊断价值来自模型、解释、报告、审计和运维的闭环</text>
+    <text x="52" y="100" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="18" fill="#64748B">系统不是单点预测器，而是把 AI 结果接入医生复核、病例留痕和生产监控。</text>
+  </g>
+
+  <g id="loop-figure">
+    <rect x="52" y="170" width="700" height="245" rx="8" fill="#FFFFFF" stroke="#A9B7B3" stroke-width="1"/>
+    <image href="../images/fig_clinical_loop.png" x="60" y="179" width="684" height="239" preserveAspectRatio="xMidYMid meet" clip-path="url(#loopClip)"/>
+  </g>
+
+  <g id="assurance-list">
+    <line x1="812" y1="167" x2="812" y2="542" stroke="#A9B7B3" stroke-width="1.4" stroke-dasharray="4,4"/>
+
+    <circle cx="812" cy="204" r="9" fill="#00796B"/>
+    <use data-icon="tabler-outline/file-report" x="844" y="182" width="30" height="30" fill="#00796B" stroke-width="2"/>
+    <text x="890" y="202" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">解释与报告</text>
+    <text x="890" y="231" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">逐图 Grad-CAM、患者级概率、中文 PDF 报告。</text>
+
+    <circle cx="812" cy="305" r="9" fill="#0F4D92"/>
+    <use data-icon="tabler-outline/shield-lock" x="844" y="283" width="30" height="30" fill="#0F4D92" stroke-width="2"/>
+    <text x="890" y="303" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">权限与审计</text>
+    <text x="890" y="332" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">bcrypt、HttpOnly Cookie、失败锁定、审计 CSV。</text>
+
+    <circle cx="812" cy="406" r="9" fill="#D08A24"/>
+    <use data-icon="tabler-outline/activity" x="844" y="384" width="30" height="30" fill="#D08A24" stroke-width="2"/>
+    <text x="890" y="404" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">运行可观测</text>
+    <text x="890" y="433" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">health / metrics 输出模型加载、队列、平均延迟和 P95。</text>
+
+    <circle cx="812" cy="507" r="9" fill="#B64342"/>
+    <use data-icon="tabler-outline/search" x="844" y="485" width="30" height="30" fill="#B64342" stroke-width="2"/>
+    <text x="890" y="505" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="20" font-weight="bold" fill="#1F2933">历史检索</text>
+    <text x="890" y="534" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#64748B">按关键词、日期、类别和来源筛选病例与批量任务。</text>
+  </g>
+
+  <g id="bottom-conclusion">
+    <rect x="52" y="474" width="700" height="86" rx="8" fill="#1F2933"/>
+    <text x="84" y="512" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="23" font-weight="bold" fill="#FFFFFF">验收视角的核心判断</text>
+    <text x="84" y="542" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="15" fill="#DCEDEA">模型方法、临床解释、权限审计和运维监控已经进入同一条工作流，而不是停留在离线推理脚本。</text>
+  </g>
+
+  <g id="footer">
+    <text x="52" y="682" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="11" fill="#94A3B8">System loop derived from README, backend services and frontend pages</text>
+    <text x="1228" y="682" text-anchor="end" font-family='"Microsoft YaHei", "PingFang SC", Arial, sans-serif' font-size="11" fill="#94A3B8">04 / 04</text>
+  </g>
+</svg>

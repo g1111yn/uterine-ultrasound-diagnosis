@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B" />
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">结果解释与报告让 AI 输出进入可复核流程</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">模型输出以风险提示和复核参考形式呈现，并保留医生判断入口。</text>
+  </g>
+
+  <g id="ribbon">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M74,168 H388 A18,18 0 0 1 406,186 V478 A18,18 0 0 1 388,496 H74 A18,18 0 0 1 56,478 V186 A18,18 0 0 1 74,168 Z" />
+    <path fill="#E6F3F0" d="M108,202 H150 A18,18 0 0 1 168,220 V262 A18,18 0 0 1 150,280 H108 A18,18 0 0 1 90,262 V220 A18,18 0 0 1 108,202 Z" />
+    
+  <g transform="translate(111.0, 223.0) scale(1.5)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M3 12h4.5l1.5 -6l4 12l2 -9l1.5 3h4.5" />
+  </g>
+    <text x="90" y="323" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">预测</text>
+    <text x="90" y="360" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">患者级聚合诊断</text>
+    <g id="prob-bars">
+      <text x="90" y="398" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">正常</text>
+      <path fill="#EFEDE5" d="M166,386 H324 A6,6 0 0 1 330,392 V392 A6,6 0 0 1 324,398 H166 A6,6 0 0 1 160,392 V392 A6,6 0 0 1 166,386 Z" />
+      <path fill="#3B6D11" d="M166,386 H262 A6,6 0 0 1 268,392 V392 A6,6 0 0 1 262,398 H166 A6,6 0 0 1 160,392 V392 A6,6 0 0 1 166,386 Z" />
+      <text x="90" y="428" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">内膜癌</text>
+      <path fill="#EFEDE5" d="M166,416 H324 A6,6 0 0 1 330,422 V422 A6,6 0 0 1 324,428 H166 A6,6 0 0 1 160,422 V422 A6,6 0 0 1 166,416 Z" />
+      <path fill="#A32D2D" d="M166,416 H196 A6,6 0 0 1 202,422 V422 A6,6 0 0 1 196,428 H166 A6,6 0 0 1 160,422 V422 A6,6 0 0 1 166,416 Z" />
+      <text x="90" y="458" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">息肉</text>
+      <path fill="#EFEDE5" d="M166,446 H324 A6,6 0 0 1 330,452 V452 A6,6 0 0 1 324,458 H166 A6,6 0 0 1 160,452 V452 A6,6 0 0 1 166,446 Z" />
+      <path fill="#854F0B" d="M166,446 H222 A6,6 0 0 1 228,452 V452 A6,6 0 0 1 222,458 H166 A6,6 0 0 1 160,452 V452 A6,6 0 0 1 166,446 Z" />
+    </g>
+
+    <line x1="416" y1="332" x2="472" y2="332" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M500,168 H814 A18,18 0 0 1 832,186 V478 A18,18 0 0 1 814,496 H500 A18,18 0 0 1 482,478 V186 A18,18 0 0 1 500,168 Z" />
+    <path fill="#FCEDE8" d="M534,202 H576 A18,18 0 0 1 594,220 V262 A18,18 0 0 1 576,280 H534 A18,18 0 0 1 516,262 V220 A18,18 0 0 1 534,202 Z" />
+    
+  <g transform="translate(537.0, 223.0) scale(1.5)" fill="none" stroke="#C15F3C" stroke-width="2">
+    <path d="M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8" />
+    <path d="M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8" />
+    <path d="M17.5 16a3.5 3.5 0 0 0 0 -7h-.5" />
+    <path d="M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0" />
+    <path d="M6.5 16a3.5 3.5 0 0 1 0 -7h.5" />
+    <path d="M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10" />
+  </g>
+    <text x="516" y="323" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">解释</text>
+    <text x="516" y="360" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">逐图预测 + Grad-CAM</text>
+    <path fill="#EFEDE5" stroke="#D8D6CC" d="M528,388 H600 A12,12 0 0 1 612,400 V446 A12,12 0 0 1 600,458 H528 A12,12 0 0 1 516,446 V400 A12,12 0 0 1 528,388 Z" />
+    <path d="M542 430 C552 400, 586 400, 594 430" fill="none" stroke="#C15F3C" stroke-width="3" />
+    <circle cx="568" cy="425" r="12" fill="#C15F3C" fill-opacity="0.28" />
+    <path fill="#E6F3F0" d="M645,388 H777 A9,9 0 0 1 786,397 V397 A9,9 0 0 1 777,406 H645 A9,9 0 0 1 636,397 V397 A9,9 0 0 1 645,388 Z" />
+    <path fill="#FCEDE8" d="M645,420 H737 A9,9 0 0 1 746,429 V429 A9,9 0 0 1 737,438 H645 A9,9 0 0 1 636,429 V429 A9,9 0 0 1 645,420 Z" />
+    <path fill="#E6F1FB" d="M645,452 H759 A9,9 0 0 1 768,461 V461 A9,9 0 0 1 759,470 H645 A9,9 0 0 1 636,461 V461 A9,9 0 0 1 645,452 Z" />
+
+    <line x1="842" y1="332" x2="898" y2="332" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M926,168 H1206 A18,18 0 0 1 1224,186 V478 A18,18 0 0 1 1206,496 H926 A18,18 0 0 1 908,478 V186 A18,18 0 0 1 926,168 Z" />
+    <path fill="#E6F1FB" d="M960,202 H1002 A18,18 0 0 1 1020,220 V262 A18,18 0 0 1 1002,280 H960 A18,18 0 0 1 942,262 V220 A18,18 0 0 1 960,202 Z" />
+    
+  <g transform="translate(963.0, 223.0) scale(1.5)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+    <path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" />
+    <path d="M10 14l4 0" />
+    <path d="M12 12l0 4" />
+  </g>
+    <text x="942" y="323" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">报告</text>
+    <text x="942" y="360" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#6B6864">中文 PDF 诊断报告</text>
+    <path fill="#F7F6F0" stroke="#D8D6CC" d="M954,392 H1144 A12,12 0 0 1 1156,404 V460 A12,12 0 0 1 1144,472 H954 A12,12 0 0 1 942,460 V404 A12,12 0 0 1 954,392 Z" />
+    
+  <g transform="translate(966.0, 416.0) scale(1.3333333333333333)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M13 17a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+    <path d="M17 13v4h4" />
+    <path d="M12 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M11.5 21h-6.5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v2m0 3v4" />
+  </g>
+    <text x="1012" y="434" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">report.pdf</text>
+    <text x="1012" y="458" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#6B6864">归档 / 沟通 / 复核</text>
+  </g>
+
+  <g id="review-principle">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M180,548 H1100 A18,18 0 0 1 1118,566 V588 A18,18 0 0 1 1100,606 H180 A18,18 0 0 1 162,588 V566 A18,18 0 0 1 180,548 Z" />
+    
+  <g transform="translate(196.0, 564.0) scale(1.1666666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M13 3a1 1 0 0 1 1 1v4.535l3.928 -2.267a1 1 0 0 1 1.366 .366l1 1.732a1 1 0 0 1 -.366 1.366l-3.927 2.268l3.927 2.269a1 1 0 0 1 .366 1.366l-1 1.732a1 1 0 0 1 -1.366 .366l-3.928 -2.269v4.536a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-4.536l-3.928 2.268a1 1 0 0 1 -1.366 -.366l-1 -1.732a1 1 0 0 1 .366 -1.366l3.927 -2.268l-3.927 -2.268a1 1 0 0 1 -.366 -1.366l1 -1.732a1 1 0 0 1 1.366 -.366l3.928 2.267v-4.535a1 1 0 0 1 1 -1h2" />
+  </g>
+    <text x="244" y="584" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" fill="#1F1E1D">医生判断、病理结果和临床流程仍是最终依据；AI 输出只作为复核参考。</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: Grad-CAM and report_pdf services</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">07 / 12</text>
+  </g>
+</svg>

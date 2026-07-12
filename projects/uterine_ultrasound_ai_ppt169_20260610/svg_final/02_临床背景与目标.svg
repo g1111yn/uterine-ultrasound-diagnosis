@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B" />
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">从单张影像判断，走向患者级辅助决策</text>
+    <text x="56" y="106" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">系统目标不是替代医生，而是把多图、多文本、可解释和可追溯能力接入真实超声流程。</text>
+  </g>
+
+  <g id="takeaway">
+    <path fill="#E6F3F0" stroke="#D8D6CC" d="M70,128 H1210 A14,14 0 0 1 1224,142 V168 A14,14 0 0 1 1210,182 H70 A14,14 0 0 1 56,168 V142 A14,14 0 0 1 70,128 Z" />
+    
+  <g transform="translate(78.0, 143.0)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    <path d="M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0" />
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+  </g>
+    <text x="116" y="162" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" fill="#1F1E1D">把 AI 输出定位为“预测概率 + 风险提示 + 复核参考”，服务医生最终判断。</text>
+  </g>
+
+  <g id="clinical-reality">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M72,222 H588 A16,16 0 0 1 604,238 V560 A16,16 0 0 1 588,576 H72 A16,16 0 0 1 56,560 V238 A16,16 0 0 1 72,222 Z" />
+    <path fill="#EFEDE5" d="M72,222 H588 A16,16 0 0 1 604,238 V270 A16,16 0 0 1 588,286 H72 A16,16 0 0 1 56,270 V238 A16,16 0 0 1 72,222 Z" />
+    <text x="88" y="263" font-family="Georgia, Microsoft YaHei, serif" font-size="26" font-weight="700" fill="#1F1E1D">临床现实</text>
+    
+  <g transform="translate(532.0, 240.0) scale(1.1666666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M6 4h-1a2 2 0 0 0 -2 2v3.5a5.5 5.5 0 0 0 11 0v-3.5a2 2 0 0 0 -2 -2h-1" />
+    <path d="M8 15a6 6 0 1 0 12 0v-3" />
+    <path d="M11 3v2" />
+    <path d="M6 3v2" />
+    <path d="M18 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  </g>
+
+    <g id="left-point-1">
+      <circle cx="96" cy="336" r="17" fill="#E6F3F0" />
+      <text x="96" y="343" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="18" font-weight="700" fill="#00796B">1</text>
+      <text x="128" y="334" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">多张切面共同构成判断依据</text>
+      <text x="128" y="363" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#6B6864">一个患者通常包含多张超声图像，而非单图结论。</text>
+    </g>
+
+    <g id="left-point-2">
+      <circle cx="96" cy="428" r="17" fill="#E6F3F0" />
+      <text x="96" y="435" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="18" font-weight="700" fill="#00796B">2</text>
+      <text x="128" y="426" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">检查文字承载上下文</text>
+      <text x="128" y="455" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#6B6864">检查方式与检查所见共同影响临床解释。</text>
+    </g>
+
+    <g id="left-point-3">
+      <circle cx="96" cy="520" r="17" fill="#E6F3F0" />
+      <text x="96" y="527" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="18" font-weight="700" fill="#00796B">3</text>
+      <text x="128" y="518" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">结果需要可复核与可追溯</text>
+      <text x="128" y="547" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#6B6864">热力图、报告和历史记录是进入流程的关键。</text>
+    </g>
+  </g>
+
+  <g id="system-goals">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M692,222 H1208 A16,16 0 0 1 1224,238 V560 A16,16 0 0 1 1208,576 H692 A16,16 0 0 1 676,560 V238 A16,16 0 0 1 692,222 Z" />
+    <path fill="#FCEDE8" d="M692,222 H1208 A16,16 0 0 1 1224,238 V270 A16,16 0 0 1 1208,286 H692 A16,16 0 0 1 676,270 V238 A16,16 0 0 1 692,222 Z" />
+    <text x="708" y="263" font-family="Georgia, Microsoft YaHei, serif" font-size="26" font-weight="700" fill="#1F1E1D">系统目标</text>
+    
+  <g transform="translate(1152.0, 240.0) scale(1.1666666666666667)" fill="none" stroke="#C15F3C" stroke-width="2">
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+    <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" />
+    <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+  </g>
+
+    <g id="goal-flow">
+      <path fill="#E6F3F0" stroke="#D8D6CC" d="M738,330 H852 A14,14 0 0 1 866,344 V380 A14,14 0 0 1 852,394 H738 A14,14 0 0 1 724,380 V344 A14,14 0 0 1 738,330 Z" />
+      <text x="795" y="369" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" font-weight="700" fill="#00796B">输入</text>
+      <line x1="874" y1="362" x2="938" y2="362" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+      <path fill="#E6F1FB" stroke="#D8D6CC" d="M962,330 H1076 A14,14 0 0 1 1090,344 V380 A14,14 0 0 1 1076,394 H962 A14,14 0 0 1 948,380 V344 A14,14 0 0 1 962,330 Z" />
+      <text x="1019" y="369" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" font-weight="700" fill="#2F7C95">推理</text>
+      <line x1="1019" y1="402" x2="1019" y2="456" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+      <path fill="#FCEDE8" stroke="#D8D6CC" d="M962,466 H1076 A14,14 0 0 1 1090,480 V516 A14,14 0 0 1 1076,530 H962 A14,14 0 0 1 948,516 V480 A14,14 0 0 1 962,466 Z" />
+      <text x="1019" y="505" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" font-weight="700" fill="#C15F3C">复核</text>
+      <line x1="938" y1="498" x2="874" y2="498" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+      <path fill="#FFFFFF" stroke="#D8D6CC" d="M738,466 H852 A14,14 0 0 1 866,480 V516 A14,14 0 0 1 852,530 H738 A14,14 0 0 1 724,516 V480 A14,14 0 0 1 738,466 Z" />
+      <text x="795" y="505" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" font-weight="700" fill="#1F1E1D">归档</text>
+    </g>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: project README and local codebase analysis</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">02 / 12</text>
+  </g>
+</svg>
