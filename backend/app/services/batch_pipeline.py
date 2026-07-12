@@ -21,7 +21,7 @@ import os
 import shutil
 import threading
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -50,6 +50,28 @@ KNOWN_MANIFEST_COLUMNS = {"patient_no", "clinical_text", "check_project"}
 # user_id -> lock; ensures one in-flight batch submission per user.
 _user_locks: dict[str, threading.Lock] = {}
 _user_locks_guard = threading.Lock()
+
+
+def _batch_without_work_error(patient_work: list) -> tuple[str, str]:
+    if not patient_work:
+        return "NO_VALID_IMAGES", "批量任务中没有可处理的有效图像。"
+    return "", ""
+
+
+def _fail_batch_without_work(job: BatchJob, patient_work: list) -> bool:
+    code, message = _batch_without_work_error(patient_work)
+    if not code:
+        return False
+    job.status = "failed"
+    job.finished_at = datetime.now(timezone.utc)
+    job.error_message = message
+    return True
+
+
+def _completed_task_record(done_event, task_result: list, *, timeout: int):
+    if not done_event.wait(timeout=timeout):
+        return None
+    return task_result[0] if task_result else None
 
 
 class BatchError(Exception):
@@ -333,7 +355,7 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                 total_images=total_images,
                 status="running",
                 aggregation_strategy=strategy.name,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
             )
             db.add(job)
             db.flush()
@@ -381,18 +403,22 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
 
                 patient_work.append((case_id, check_project, clinical_text, image_rows))
 
-            db.commit()
-
-            # Kick off serial background worker for this batch.
-            _start_serial_batch_worker(job_id, patient_work, strategy.name)
-
-            return {
+            summary = {
                 "job_id": job_id,
                 "total_patients": job.total_patients,
                 "total_images": job.total_images,
                 "status_url": f"/api/batch/{job_id}",
                 "warnings": warnings,
             }
+            if _fail_batch_without_work(job, patient_work):
+                db.commit()
+                return summary
+
+            db.commit()
+
+            # Kick off serial background worker for this batch.
+            _start_serial_batch_worker(job_id, patient_work, strategy.name)
+            return summary
         except BatchError:
             db.rollback()
             raise
@@ -458,14 +484,14 @@ def _start_serial_batch_worker(
                     )
 
                     # Block until this single image is done.
-                    done_event.wait(timeout=300)
+                    task_record = _completed_task_record(done_event, task_result, timeout=300)
 
                     # Update completed_images immediately.
                     job.completed_images += 1
                     db.commit()
 
-                    if task_result and task_result[0].status == "done" and task_result[0].result:
-                        res = task_result[0].result
+                    if task_record and task_record.status == "done" and task_record.result:
+                        res = task_record.result
                         first_model_version = first_model_version or res.model_version
                         db.add(PerImagePrediction(
                             image_id=ci["id"],
@@ -511,7 +537,7 @@ def _start_serial_batch_worker(
                 # Check if batch is done.
                 if job.completed_patients >= job.total_patients:
                     job.status = "completed"
-                    job.finished_at = datetime.utcnow()
+                    job.finished_at = datetime.now(timezone.utc)
 
                 db.commit()
             except Exception:
@@ -523,7 +549,8 @@ def _start_serial_batch_worker(
                     job = db.query(BatchJob).filter(BatchJob.job_id == job_id).first()
                     if job and job.status not in ("completed", "cancelled"):
                         job.status = "failed"
-                        job.finished_at = datetime.utcnow()
+                        job.finished_at = datetime.now(timezone.utc)
+                        job.error_message = "批量任务处理失败，请重新提交。"
                         db.commit()
                 except Exception:
                     pass
@@ -549,7 +576,7 @@ def cancel_batch(job_id: str, *, user_id: str) -> bool:
         if job.status not in ("pending", "running"):
             return True
         job.status = "cancelled"
-        job.finished_at = datetime.utcnow()
+        job.finished_at = datetime.now(timezone.utc)
         db.commit()
         return True
     finally:
@@ -572,7 +599,7 @@ def resume_incomplete_batches() -> int:
         )
         for job in stuck:
             job.status = "failed"
-            job.finished_at = datetime.utcnow()
+            job.finished_at = datetime.now(timezone.utc)
             job.error_message = "服务重启，批量任务已中断，请重新提交。"
             fixed += 1
         db.commit()

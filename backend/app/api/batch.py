@@ -153,6 +153,7 @@ async def get_batch_status(
         total_images=job.total_images,
         completed_images=job.completed_images,
         status=job.status,
+        error=job.error_message or None,
         aggregation_strategy=job.aggregation_strategy,
         current_patient=job.current_patient or "",
         started_at=job.started_at,

@@ -9,6 +9,14 @@ CLASS_ZH = {
     "polyp": "息肉",
 }
 
+MODEL_CLASSES = set(CLASS_ZH)
+VALID_JUDGMENT_CLASSES = MODEL_CLASSES | {"indeterminate"}
+JUDGMENT_CLASS_ZH = {
+    **CLASS_ZH,
+    "endometrial_cancer": "疑似子宫内膜癌",
+    "indeterminate": "无法判断 / 需进一步检查",
+}
+
 RECOMMENDATION_OPTIONS = {"none", "followup", "biopsy", "surgery", "other"}
 
 
@@ -110,6 +118,7 @@ class BatchStatusResponse(BaseModel):
     total_images: int
     completed_images: int
     status: str
+    error: Optional[str] = None
     aggregation_strategy: str
     current_patient: str = ""
     started_at: Optional[datetime] = None

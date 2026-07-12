@@ -1,7 +1,7 @@
 """Cases API: list, detail, per-image asset endpoints, judgment."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -21,7 +21,9 @@ from app.models.db import (
 )
 from app.models.schemas import (
     CLASS_ZH,
+    JUDGMENT_CLASS_ZH,
     RECOMMENDATION_OPTIONS,
+    VALID_JUDGMENT_CLASSES,
     CaseDetailJudgment,
     CaseDetailResponse,
     CaseImageOut,
@@ -48,6 +50,24 @@ MEDIA_TYPES = {
     "tiff": "image/tiff",
     "dcm": "application/dicom",
 }
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _judgment_audit_snapshot(judgment: Judgment) -> dict:
+    return {
+        "id": judgment.id,
+        "case_id": judgment.case_id,
+        "final_class": judgment.final_class,
+        "recommendation": judgment.recommendation,
+        "note": judgment.note,
+        "doctor_id": judgment.doctor_id,
+        "judged_at": _as_utc(judgment.judged_at).isoformat(),
+    }
 
 
 def _not_found(message: str):
@@ -133,7 +153,7 @@ async def list_cases(
         predicted_class_zh = CLASS_ZH.get(pred.predicted_class, pred.predicted_class) if pred else None
         confidence = pred.confidence if pred else None
         doctor_judgment = judg.final_class if judg else None
-        doctor_judgment_zh = CLASS_ZH.get(judg.final_class, judg.final_class) if judg else None
+        doctor_judgment_zh = JUDGMENT_CLASS_ZH.get(judg.final_class, judg.final_class) if judg else None
         agreement = None
         if pred and judg:
             agreement = pred.predicted_class == judg.final_class
@@ -221,11 +241,11 @@ async def get_case(case_id: str, db: Session = Depends(get_db), _user: User = De
     if judg:
         judgment_out = CaseDetailJudgment(
             final_class=judg.final_class,
-            final_class_zh=CLASS_ZH.get(judg.final_class, judg.final_class),
+            final_class_zh=JUDGMENT_CLASS_ZH.get(judg.final_class, judg.final_class),
             recommendation=judg.recommendation,
             note=judg.note,
             doctor_id=judg.doctor_id,
-            judged_at=judg.judged_at,
+            judged_at=_as_utc(judg.judged_at),
         )
 
     return CaseDetailResponse(
@@ -253,11 +273,10 @@ async def submit_judgment(
     if not case:
         return _not_found(f"Case {case_id} not found.")
 
-    valid_classes = {"normal", "endometrial_cancer", "polyp"}
-    if body.final_class not in valid_classes:
+    if body.final_class not in VALID_JUDGMENT_CLASSES:
         return JSONResponse(
             status_code=400,
-            content={"error": {"code": "INVALID_CLASS", "message": f"final_class must be one of {valid_classes}"}},
+            content={"error": {"code": "INVALID_CLASS", "message": f"final_class must be one of {VALID_JUDGMENT_CLASSES}"}},
         )
     if body.recommendation not in RECOMMENDATION_OPTIONS:
         return JSONResponse(
@@ -266,11 +285,13 @@ async def submit_judgment(
         )
 
     existing = db.query(Judgment).filter(Judgment.case_id == case_id).first()
+    before = _judgment_audit_snapshot(existing) if existing else None
     if existing:
         existing.final_class = body.final_class
         existing.recommendation = body.recommendation
         existing.note = body.note
         existing.doctor_id = current_user.user_id
+        existing.judged_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(existing)
         judg = existing
@@ -286,13 +307,15 @@ async def submit_judgment(
         db.commit()
         db.refresh(judg)
 
+    after = _judgment_audit_snapshot(judg)
+
     audit.log_event(
         user_id=current_user.user_id,
         action="submit_judgment",
         resource_type="case",
         resource_id=case_id,
         request=request,
-        detail={"final_class": body.final_class, "recommendation": body.recommendation},
+        detail={"before": before, "after": after},
     )
 
     return JudgmentResponse(
@@ -304,7 +327,7 @@ async def submit_judgment(
             recommendation=judg.recommendation,
             note=judg.note,
             doctor_id=judg.doctor_id,
-            judged_at=judg.judged_at,
+            judged_at=_as_utc(judg.judged_at),
         ),
     )
 
