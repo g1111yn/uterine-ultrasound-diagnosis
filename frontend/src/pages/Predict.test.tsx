@@ -1,8 +1,22 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { RouterProvider, createMemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import Predict from './Predict'
+
+const apiMocks = vi.hoisted(() => ({
+  postPredict: vi.fn(),
+  getTaskStatus: vi.fn(),
+  getCaseDetail: vi.fn(),
+  postJudgment: vi.fn(),
+}))
+
+vi.mock('@/api/client', () => ({
+  ...apiMocks,
+  getReportUrl: (caseId: string) => `/api/cases/${caseId}/report.pdf`,
+  getImageUrl: (imageId: string) => `/api/images/${imageId}`,
+}))
 
 afterEach(cleanup)
 
@@ -35,5 +49,50 @@ describe('Predict initial workspace', () => {
 
     const grid = screen.getByRole('heading', { name: '输入' }).parentElement?.parentElement
     expect(grid).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-2')
+  })
+
+  it('shows saved doctor and time metadata in the result workbench', async () => {
+    const user = userEvent.setup()
+    apiMocks.postPredict.mockResolvedValue({
+      task_id: 'task-1',
+      case_id: 'case-1',
+      image_count: 1,
+    })
+    apiMocks.getTaskStatus.mockResolvedValue({
+      task_id: 'task-1',
+      status: 'done',
+      case_id: 'case-1',
+      queue_position: 0,
+      estimated_wait_ms: 0,
+    })
+    apiMocks.getCaseDetail.mockResolvedValue({
+      case_id: 'case-1',
+      patient_no: 'p-1',
+      check_project: '经阴道三维超声',
+      clinical_text: '',
+      doctor_id: 'doctor-owner',
+      created_at: '2026-07-12T08:00:00Z',
+      images: [],
+      prediction: null,
+      judgment: {
+        final_class: 'normal',
+        final_class_zh: '正常',
+        recommendation: '',
+        note: '',
+        doctor_id: 'doctor-reviewer',
+        judged_at: '2026-07-12T09:30:00Z',
+      },
+    })
+    const { container } = renderPredict()
+
+    await user.type(screen.getByPlaceholderText('20260502-1138'), 'p-1')
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, { target: { files: [new File(['image'], 'image.jpg', { type: 'image/jpeg' })] } })
+    await user.click(screen.getByRole('button', { name: '开始分析' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/已保存判断 · 医生 doctor-reviewer/)).toBeVisible()
+    })
+    expect(screen.getByText(/2026/)).toBeVisible()
   })
 })

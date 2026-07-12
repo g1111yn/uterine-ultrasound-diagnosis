@@ -16,6 +16,7 @@ import {
   getImageUrl,
 } from '@/api/client'
 import type { JudgmentRequest, PredictResponse, TaskStatusResponse } from '@/lib/types'
+import { formatDateTime } from '@/lib/utils'
 
 const inputClass =
   'w-full rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-xs text-text-primary outline-none focus:border-info-border transition-colors'
@@ -231,6 +232,14 @@ export default function Predict() {
                 </div>
               )}
               <div className="rounded-md border border-border bg-bg-primary p-4">
+                {detail.judgment && (
+                  <div className="mb-3 border-b border-border pb-3 text-[11px] text-text-tertiary">
+                    已保存判断 · 医生 {detail.judgment.doctor_id} ·{' '}
+                    <span className="tabular-nums">
+                      {formatDateTime(detail.judgment.judged_at)}
+                    </span>
+                  </div>
+                )}
                 <JudgmentForm
                   key={`${detail.case_id}-${detail.judgment?.judged_at ?? 'new'}`}
                   initialClass={detail.judgment?.final_class ?? null}

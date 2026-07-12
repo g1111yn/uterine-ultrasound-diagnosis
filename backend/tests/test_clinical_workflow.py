@@ -126,6 +126,40 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertIsNone(detail["before"])
         self.assertEqual(detail["after"]["final_class"], "polyp")
 
+    def test_judgment_accepts_an_omitted_optional_recommendation(self):
+        case = Case(case_id="case-no-recommendation", patient_no="p-optional", clinical_text="", doctor_id=self.user.user_id)
+        self.db.add(case)
+        self.db.commit()
+
+        with patch("app.api.cases.audit.log_event"):
+            response = asyncio.run(submit_judgment(
+                case.case_id,
+                JudgmentIn(final_class="normal"),
+                self._request(),
+                self.db,
+                self.user,
+            ))
+
+        self.assertEqual(response.judgment.recommendation, "")
+        persisted = self.db.query(Judgment).filter(Judgment.case_id == case.case_id).one()
+        self.assertEqual(persisted.recommendation, "")
+
+    def test_judgment_accepts_a_null_optional_recommendation(self):
+        case = Case(case_id="case-null-recommendation", patient_no="p-null", clinical_text="", doctor_id=self.user.user_id)
+        self.db.add(case)
+        self.db.commit()
+
+        with patch("app.api.cases.audit.log_event"):
+            response = asyncio.run(submit_judgment(
+                case.case_id,
+                JudgmentIn(final_class="polyp", recommendation=None),
+                self._request(),
+                self.db,
+                self.user,
+            ))
+
+        self.assertEqual(response.judgment.recommendation, "")
+
     def test_case_detail_uses_physician_judgment_label(self):
         case = Case(case_id="case-3", patient_no="p-3", clinical_text="", doctor_id=self.user.user_id)
         judgment = Judgment(
@@ -474,6 +508,28 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(persisted.total_images, 1)
         self.assertEqual(len(start_worker.call_args.args[1][0][3]), 1)
 
+    def test_submit_batch_persists_reason_when_patient_has_no_usable_images(self):
+        session_factory = sessionmaker(bind=self.engine)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            unreadable = root / "unreadable.dcm"
+            unreadable.write_bytes(b"dcm")
+
+            with (
+                patch("app.services.batch_pipeline.SessionLocal", session_factory),
+                patch("app.services.batch_pipeline.BATCH_DIR", root),
+                patch("app.services.batch_pipeline._safe_extract_zip"),
+                patch("app.services.batch_pipeline._parse_manifest", return_value=({"p-unreadable": ("ultrasound", "")}, [])),
+                patch("app.services.batch_pipeline._collect_patient_images", return_value={"p-unreadable": [unreadable]}),
+                patch("app.services.batch_pipeline.save_upload_with_preview", return_value=("unreadable.dcm", "dcm", "")),
+            ):
+                summary = submit_batch(b"zip", user_id=self.user.user_id, aggregation_strategy="mean")
+
+        case = self.db.query(Case).filter(Case.batch_job_id == summary["job_id"]).one()
+        self.assertIn("DICOM", case.batch_error)
+        response = asyncio.run(get_batch_status(summary["job_id"], self.db, self.user))
+        self.assertEqual(response.results[0].error, case.batch_error)
+
     def test_batch_status_returns_job_error_message(self):
         job = BatchJob(
             job_id="batch-failed",
@@ -491,7 +547,7 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(response.error, "没有有效图像")
         self.assertEqual(response.estimated_remaining_ms, 0)
 
-    def test_batch_job_list_filters_running_jobs_within_current_user(self):
+    def test_batch_job_list_shows_running_jobs_from_all_doctors(self):
         other = User(user_id="other-doctor", display_name="其他医生", password_hash="unused")
         self.db.add_all([
             other,
@@ -509,8 +565,11 @@ class ClinicalWorkflowTests(unittest.TestCase):
             current_user=self.user,
         ))
 
-        self.assertEqual(response.total, 1)
-        self.assertEqual([item.job_id for item in response.items], ["mine-running"])
+        self.assertEqual(response.total, 2)
+        self.assertEqual(
+            {item.job_id for item in response.items},
+            {"mine-running", "other-running"},
+        )
 
     def test_batch_api_exposes_internal_pending_status_as_queued(self):
         job = BatchJob(job_id="mine-pending", user_id=self.user.user_id, status="pending")
@@ -546,9 +605,99 @@ class ClinicalWorkflowTests(unittest.TestCase):
             current_user=self.user,
         ))
 
-        self.assertEqual(response.total, 1)
-        self.assertEqual([item.job_id for item in response.items], ["mine-queued"])
-        self.assertEqual(response.items[0].status, "queued")
+        self.assertEqual(response.total, 2)
+        self.assertEqual(
+            {item.job_id for item in response.items},
+            {"mine-queued", "other-queued"},
+        )
+        self.assertTrue(all(item.status == "queued" for item in response.items))
+
+    def test_batch_status_returns_persisted_patient_failure_reason(self):
+        job = BatchJob(
+            job_id="batch-patient-failure",
+            user_id=self.user.user_id,
+            status="completed",
+            total_patients=1,
+            completed_patients=1,
+            failed_patients=1,
+        )
+        case = Case(
+            case_id="case-patient-failure",
+            patient_no="p-failed",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+            batch_error="DICOM 图像无法生成可用预览。",
+        )
+        self.db.add_all([job, case])
+        self.db.commit()
+
+        response = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
+
+        self.assertEqual(response.results[0].error, "DICOM 图像无法生成可用预览。")
+
+    def test_failed_patient_inference_persists_the_queue_error(self):
+        job = BatchJob(
+            job_id="batch-inference-failure",
+            user_id=self.user.user_id,
+            status="running",
+            total_patients=1,
+            total_images=1,
+        )
+        case = Case(
+            case_id="case-inference-failure",
+            patient_no="p-inference-failure",
+            check_project="ultrasound",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+        )
+        image = CaseImage(case_id=case.case_id, image_path="image.bin", image_format="jpg", sequence=1)
+        self.db.add_all([job, case, image])
+        self.db.commit()
+        session_factory = sessionmaker(bind=self.engine)
+
+        def fail_immediately(task_id, **kwargs):
+            kwargs["on_complete"](TaskRecord(
+                task_id=task_id,
+                kind="per_image",
+                priority=5,
+                status="failed",
+                error="模型无法读取该图像",
+            ))
+
+        class InlineThread:
+            def __init__(self, *, target, **kwargs):
+                self.target = target
+
+            def start(self):
+                self.target()
+
+            def join(self, timeout=None):
+                return None
+
+            def is_alive(self):
+                return False
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            (Path(tmpdir) / image.image_path).write_bytes(b"image")
+            with (
+                patch("app.services.batch_pipeline.DATA_DIR", Path(tmpdir)),
+                patch("app.services.batch_pipeline.SessionLocal", session_factory),
+                patch("app.services.batch_pipeline.queue.submit_per_image", side_effect=fail_immediately),
+                patch("app.services.batch_pipeline.threading.Thread", InlineThread),
+            ):
+                worker = _start_serial_batch_worker(
+                    job.job_id,
+                    [(case.case_id, case.check_project, case.clinical_text, [{"id": image.id, "image_path": image.image_path}])],
+                    "mean",
+                )
+                worker.join(timeout=5)
+                self.assertFalse(worker.is_alive())
+
+        self.db.expire_all()
+        persisted = self.db.query(Case).filter(Case.case_id == case.case_id).one()
+        self.assertEqual(persisted.batch_error, "模型无法读取该图像")
 
     def test_batch_job_list_rejects_non_public_status_filters(self):
         class EmptyQuery:

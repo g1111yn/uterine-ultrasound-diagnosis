@@ -46,7 +46,8 @@ async def list_batch_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.require_user),
 ):
-    q = db.query(BatchJob).filter(BatchJob.user_id == current_user.user_id)
+    _ = current_user
+    q = db.query(BatchJob)
     if status:
         q = q.filter(BatchJob.status == _internal_status_filter(status))
     total = q.count()
@@ -151,7 +152,7 @@ async def get_batch_status(
                 case_id=case.case_id,
                 patient_no=case.patient_no,
                 image_count=0,
-                error="推理未完成",
+                error=case.batch_error or "推理未完成",
             ))
 
     # Rough ETA: remaining images * moving-average per-image latency.

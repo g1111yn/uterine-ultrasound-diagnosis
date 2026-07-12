@@ -149,7 +149,7 @@ class CaseListResponse(BaseModel):
 
 class JudgmentIn(BaseModel):
     final_class: str
-    recommendation: str = "none"
+    recommendation: Optional[str] = None
     note: str = ""
 
 

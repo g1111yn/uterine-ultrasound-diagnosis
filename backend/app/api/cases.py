@@ -278,7 +278,8 @@ async def submit_judgment(
             status_code=400,
             content={"error": {"code": "INVALID_CLASS", "message": f"final_class must be one of {VALID_JUDGMENT_CLASSES}"}},
         )
-    if body.recommendation not in RECOMMENDATION_OPTIONS:
+    recommendation = body.recommendation or ""
+    if recommendation and recommendation not in RECOMMENDATION_OPTIONS:
         return JSONResponse(
             status_code=400,
             content={"error": {"code": "INVALID_RECOMMENDATION", "message": f"recommendation must be one of {RECOMMENDATION_OPTIONS}"}},
@@ -288,7 +289,7 @@ async def submit_judgment(
     before = _judgment_audit_snapshot(existing) if existing else None
     if existing:
         existing.final_class = body.final_class
-        existing.recommendation = body.recommendation
+        existing.recommendation = recommendation
         existing.note = body.note
         existing.doctor_id = current_user.user_id
         existing.judged_at = datetime.now(timezone.utc)
@@ -299,7 +300,7 @@ async def submit_judgment(
         judg = Judgment(
             case_id=case_id,
             final_class=body.final_class,
-            recommendation=body.recommendation,
+            recommendation=recommendation,
             note=body.note,
             doctor_id=current_user.user_id,
         )

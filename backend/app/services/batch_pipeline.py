@@ -92,7 +92,19 @@ def _transition_running_batch(db, job_id: str, status: str, *, error_message: st
     return bool(updated)
 
 
-def _fail_running_batch_on_timeout(db, job_id: str, error_message: str) -> bool:
+def _fail_running_batch_on_timeout(
+    db,
+    job_id: str,
+    error_message: str,
+    *,
+    case_id: str | None = None,
+) -> bool:
+    if case_id:
+        (
+            db.query(Case)
+            .filter(Case.case_id == case_id)
+            .update({Case.batch_error: error_message}, synchronize_session=False)
+        )
     updated = (
         db.query(BatchJob)
         .filter(BatchJob.job_id == job_id, BatchJob.status == "running")
@@ -444,10 +456,16 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                 db.flush()
 
                 image_rows: list[dict] = []
+                persistence_errors: list[str] = []
                 for seq, src in enumerate(imgs, start=1):
-                    content = src.read_bytes()
-                    rel_path, fmt, preview_path = save_upload_with_preview(content, src.name)
+                    try:
+                        content = src.read_bytes()
+                        rel_path, fmt, preview_path = save_upload_with_preview(content, src.name)
+                    except Exception as exc:
+                        persistence_errors.append(f"{src.name}：{str(exc) or '图像保存失败'}")
+                        continue
                     if fmt == "dcm" and not preview_path:
+                        persistence_errors.append(f"{src.name}：DICOM 图像无法生成可用预览")
                         continue
                     ci = CaseImage(
                         case_id=case_id,
@@ -465,6 +483,7 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                     image_rows.append({"id": ci.id, "image_path": ci.image_path})
 
                 if not image_rows:
+                    case.batch_error = "；".join(persistence_errors) or "未找到可处理的有效图像。"
                     job.completed_patients += 1
                     job.failed_patients += 1
                     continue
@@ -529,6 +548,7 @@ def _start_serial_batch_worker(
 
                 # Infer each image sequentially.
                 per_results: list[PerImageResult] = []
+                inference_errors: list[str] = []
                 first_model_version: Optional[str] = None
 
                 for ci in image_rows:
@@ -573,6 +593,7 @@ def _start_serial_batch_worker(
                             db,
                             job_id,
                             "图像推理超时，批量任务已停止，请重新提交。",
+                            case_id=case_id,
                         ):
                             return
                         return
@@ -603,6 +624,8 @@ def _start_serial_batch_worker(
                             confidence=res.confidence,
                         ))
                         db.commit()
+                    elif task_record and task_record.error:
+                        inference_errors.append(task_record.error)
 
                 # Serialize the final status check with aggregation writes so a
                 # concurrent cancellation cannot commit between them.
@@ -629,6 +652,8 @@ def _start_serial_batch_worker(
                     ))
                     job.succeeded_patients += 1
                 else:
+                    if case:
+                        case.batch_error = "；".join(dict.fromkeys(inference_errors)) or "图像推理失败，未生成诊断结果。"
                     job.failed_patients += 1
 
                 if job.completed_patients >= job.total_patients:
@@ -643,6 +668,9 @@ def _start_serial_batch_worker(
                 try:
                     job = db.query(BatchJob).filter(BatchJob.job_id == job_id).first()
                     if job and job.status not in ("completed", "cancelled"):
+                        case = db.query(Case).filter(Case.case_id == case_id).first()
+                        if case:
+                            case.batch_error = "患者处理失败，请重新提交。"
                         job.status = "failed"
                         job.finished_at = datetime.now(timezone.utc)
                         job.error_message = "批量任务处理失败，请重新提交。"

@@ -105,6 +105,7 @@ class Case(Base):
     clinical_text = Column(Text, default="")
     doctor_id = Column(String, ForeignKey("users.user_id"), index=True, nullable=False)
     batch_job_id = Column(String, ForeignKey("batch_jobs.job_id"), nullable=True, index=True)
+    batch_error = Column(Text, default="")
     created_at = Column(DateTime, index=True, nullable=False, default=_utcnow)
 
     images = relationship(
@@ -239,12 +240,13 @@ def init_schema():
 
 
 def _ensure_legacy_columns():
-    """V2 给 cases 加了 check_project 列；老部署如果先建了 V1 表，
-    SQLAlchemy create_all 不会自动 ALTER。这里幂等地补一次。"""
+    """Idempotently add columns introduced after the initial cases table."""
     with engine.begin() as conn:
         cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(cases)")}
         if "check_project" not in cols:
             conn.exec_driver_sql("ALTER TABLE cases ADD COLUMN check_project VARCHAR DEFAULT ''")
+        if "batch_error" not in cols:
+            conn.exec_driver_sql("ALTER TABLE cases ADD COLUMN batch_error TEXT DEFAULT ''")
 
 
 def _seed_default_user():

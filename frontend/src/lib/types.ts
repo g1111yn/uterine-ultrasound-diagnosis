@@ -119,7 +119,7 @@ export interface Judgment {
 
 export interface JudgmentRequest {
   final_class: JudgmentClass
-  recommendation: string
+  recommendation?: string | null
   note: string
 }
 
