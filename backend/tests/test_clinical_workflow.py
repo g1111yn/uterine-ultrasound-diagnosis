@@ -320,6 +320,35 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(job.completed_patients, 1)
         self.assertEqual(job.failed_patients, 1)
 
+    def test_timeout_does_not_mark_case_failed_after_cancellation_wins(self):
+        job = BatchJob(
+            job_id="batch-cancelled-before-timeout",
+            user_id=self.user.user_id,
+            status="cancelled",
+            total_patients=1,
+            total_images=1,
+        )
+        case = Case(
+            case_id="case-cancelled-before-timeout",
+            patient_no="p-cancelled",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+        )
+        self.db.add_all([job, case])
+        self.db.commit()
+
+        transitioned = _fail_running_batch_on_timeout(
+            self.db,
+            job.job_id,
+            "图像推理超时",
+            case_id=case.case_id,
+        )
+
+        self.assertFalse(transitioned)
+        self.db.refresh(case)
+        self.assertEqual(case.batch_error, "")
+
     @staticmethod
     def _inference_result():
         return SimpleNamespace(

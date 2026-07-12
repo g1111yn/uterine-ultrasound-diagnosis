@@ -99,12 +99,6 @@ def _fail_running_batch_on_timeout(
     *,
     case_id: str | None = None,
 ) -> bool:
-    if case_id:
-        (
-            db.query(Case)
-            .filter(Case.case_id == case_id)
-            .update({Case.batch_error: error_message}, synchronize_session=False)
-        )
     updated = (
         db.query(BatchJob)
         .filter(BatchJob.job_id == job_id, BatchJob.status == "running")
@@ -120,6 +114,12 @@ def _fail_running_batch_on_timeout(
             synchronize_session=False,
         )
     )
+    if updated and case_id:
+        (
+            db.query(Case)
+            .filter(Case.case_id == case_id)
+            .update({Case.batch_error: error_message}, synchronize_session=False)
+        )
     db.commit()
     return bool(updated)
 
