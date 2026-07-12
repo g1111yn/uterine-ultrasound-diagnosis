@@ -1,4 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import {
+  Navigate,
+  Outlet,
+  Route,
+  RouterProvider,
+  createBrowserRouter,
+  createRoutesFromElements,
+} from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/auth/AuthContext'
 import ProtectedRoute from '@/auth/ProtectedRoute'
@@ -25,43 +32,45 @@ const queryClient = new QueryClient({
   },
 })
 
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<AuthProvider><Outlet /></AuthProvider>}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/change-password" element={<ChangePassword />} />
+
+      {/* 受保护路由 */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Predict />} />
+          <Route path="/predict" element={<Navigate to="/" replace />} />
+          <Route path="/batch" element={<Batch />} />
+          <Route path="/batch/running" element={<BatchHistory mode="running" />} />
+          <Route path="/batch/history" element={<BatchHistory />} />
+          <Route path="/batch/:jobId" element={<BatchDetail />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/case/:caseId" element={<CaseDetail />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+      </Route>
+
+      {/* 管理员路由 */}
+      <Route element={<ProtectedRoute adminOnly />}>
+        <Route element={<Layout />}>
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
+          <Route path="/admin/stats" element={<AdminStats />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Route>,
+  ),
+)
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/change-password" element={<ChangePassword />} />
-
-            {/* 受保护路由 */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<Layout />}>
-                <Route path="/" element={<Predict />} />
-                <Route path="/predict" element={<Navigate to="/" replace />} />
-                <Route path="/batch" element={<Batch />} />
-                <Route path="/batch/running" element={<BatchHistory mode="running" />} />
-                <Route path="/batch/history" element={<BatchHistory />} />
-                <Route path="/batch/:jobId" element={<BatchDetail />} />
-                <Route path="/history" element={<History />} />
-                <Route path="/case/:caseId" element={<CaseDetail />} />
-                <Route path="/settings" element={<Settings />} />
-              </Route>
-            </Route>
-
-            {/* 管理员路由 */}
-            <Route element={<ProtectedRoute adminOnly />}>
-              <Route element={<Layout />}>
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
-                <Route path="/admin/stats" element={<AdminStats />} />
-              </Route>
-            </Route>
-
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   )
 }
