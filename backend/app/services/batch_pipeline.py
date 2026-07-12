@@ -74,6 +74,53 @@ def _completed_task_record(done_event, task_result: list, *, timeout: int):
     return task_result[0] if task_result else None
 
 
+def _transition_running_batch(db, job_id: str, status: str, *, error_message: str = "") -> bool:
+    updated = (
+        db.query(BatchJob)
+        .filter(BatchJob.job_id == job_id, BatchJob.status == "running")
+        .update(
+            {
+                BatchJob.status: status,
+                BatchJob.finished_at: datetime.now(timezone.utc),
+                BatchJob.error_message: error_message,
+            },
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    return bool(updated)
+
+
+def _begin_immediate_batch(db) -> None:
+    db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+
+
+def _cancel_inference_task_if_supported(task_id: str) -> None:
+    cancel = getattr(queue, "cancel", None)
+    if callable(cancel):
+        cancel(task_id)
+
+
+class _TaskResultGate:
+    def __init__(self, done_event, task_result: list):
+        self._done_event = done_event
+        self._task_result = task_result
+        self._accepting = True
+        self._lock = threading.Lock()
+
+    def accept(self, record: TaskRecord) -> bool:
+        with self._lock:
+            if not self._accepting:
+                return False
+            self._task_result.append(record)
+            self._done_event.set()
+            return True
+
+    def close(self) -> None:
+        with self._lock:
+            self._accepting = False
+
+
 class BatchError(Exception):
     """Hard validation error — submission cannot continue.
 
@@ -403,6 +450,11 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
 
                 patient_work.append((case_id, check_project, clinical_text, image_rows))
 
+            job.total_images = sum(
+                len(image_rows)
+                for _, _, _, image_rows in patient_work
+            )
+
             summary = {
                 "job_id": job_id,
                 "total_patients": job.total_patients,
@@ -430,7 +482,7 @@ def _start_serial_batch_worker(
     job_id: str,
     patient_work: list[tuple[str, str, str, list[dict]]],
     strategy_name: str,
-) -> None:
+) -> threading.Thread:
     """Spawn a daemon thread that processes patients one-by-one.
 
     For each patient:
@@ -469,10 +521,13 @@ def _start_serial_batch_worker(
                     task_id = generate_task_id("bimg")
                     done_event = threading.Event()
                     task_result: list = []  # mutable container for closure
+                    result_gate = _TaskResultGate(done_event, task_result)
 
-                    def _on_done(rec: TaskRecord, _ev=done_event, _out=task_result):
-                        _out.append(rec)
-                        _ev.set()
+                    def _on_done(
+                        rec: TaskRecord,
+                        _gate=result_gate,
+                    ):
+                        _gate.accept(rec)
 
                     queue.submit_per_image(
                         task_id,
@@ -485,6 +540,28 @@ def _start_serial_batch_worker(
 
                     # Block until this single image is done.
                     task_record = _completed_task_record(done_event, task_result, timeout=300)
+                    result_gate.close()
+
+                    # Cancellation may have happened while inference was running.
+                    db.refresh(job)
+                    if job.status == "cancelled":
+                        return
+
+                    if task_record is None:
+                        _cancel_inference_task_if_supported(task_id)
+                        if not _transition_running_batch(
+                            db,
+                            job_id,
+                            "failed",
+                            error_message="图像推理超时，批量任务已停止，请重新提交。",
+                        ):
+                            return
+                        db.refresh(job)
+                        job.completed_images += 1
+                        job.completed_patients += 1
+                        job.failed_patients += 1
+                        db.commit()
+                        return
 
                     # Update completed_images immediately.
                     job.completed_images += 1
@@ -513,7 +590,13 @@ def _start_serial_batch_worker(
                         ))
                         db.commit()
 
-                # Aggregate patient-level prediction.
+                # Serialize the final status check with aggregation writes so a
+                # concurrent cancellation cannot commit between them.
+                _begin_immediate_batch(db)
+                job = db.query(BatchJob).filter(BatchJob.job_id == job_id).first()
+                if job is None or job.status == "cancelled":
+                    db.rollback()
+                    return
                 job.completed_patients += 1
                 if per_results:
                     strategy = get_strategy(strategy_name)
@@ -534,11 +617,9 @@ def _start_serial_batch_worker(
                 else:
                     job.failed_patients += 1
 
-                # Check if batch is done.
                 if job.completed_patients >= job.total_patients:
                     job.status = "completed"
                     job.finished_at = datetime.now(timezone.utc)
-
                 db.commit()
             except Exception:
                 db.rollback()
@@ -560,6 +641,7 @@ def _start_serial_batch_worker(
 
     t = threading.Thread(target=_worker, name=f"batch-serial-{job_id}", daemon=True)
     t.start()
+    return t
 
 
 # -- Cancellation + Resume ---------------------------------------------------
@@ -575,8 +657,22 @@ def cancel_batch(job_id: str, *, user_id: str) -> bool:
             raise BatchError("FORBIDDEN", "无权取消该批量任务。", 403)
         if job.status not in ("pending", "running"):
             return True
-        job.status = "cancelled"
-        job.finished_at = datetime.now(timezone.utc)
+        db.rollback()
+        (
+            db.query(BatchJob)
+            .filter(
+                BatchJob.job_id == job_id,
+                BatchJob.user_id == user_id,
+                BatchJob.status.in_(("pending", "running")),
+            )
+            .update(
+                {
+                    BatchJob.status: "cancelled",
+                    BatchJob.finished_at: datetime.now(timezone.utc),
+                },
+                synchronize_session=False,
+            )
+        )
         db.commit()
         return True
     finally:

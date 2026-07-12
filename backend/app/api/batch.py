@@ -141,7 +141,11 @@ async def get_batch_status(
 
     # Rough ETA: remaining images * moving-average per-image latency.
     from app.services.inference_queue import queue  # local import avoids cycle
-    remaining_images = max(job.total_images - job.completed_images, 0)
+    remaining_images = (
+        max(job.total_images - job.completed_images, 0)
+        if job.status in ("pending", "running")
+        else 0
+    )
     eta_ms = int(remaining_images * queue._ema_ms) if remaining_images else 0
 
     return BatchStatusResponse(

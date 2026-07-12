@@ -1,8 +1,10 @@
 import asyncio
 import tempfile
+import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import Request
@@ -11,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api.batch import get_batch_status
 from app.api.cases import get_case, submit_judgment
-from app.models.db import Base, BatchJob, Case, Judgment, Prediction, User
+from app.models.db import Base, BatchJob, Case, CaseImage, Judgment, Prediction, User
 from app.models.schemas import (
     CLASS_ZH,
     JUDGMENT_CLASS_ZH,
@@ -20,10 +22,15 @@ from app.models.schemas import (
 )
 from app.services.batch_pipeline import (
     _batch_without_work_error,
+    _begin_immediate_batch,
+    _TaskResultGate,
     _completed_task_record,
     _fail_batch_without_work,
     _start_serial_batch_worker,
+    cancel_batch,
+    submit_batch,
 )
+from app.services.inference_queue import TaskRecord
 
 
 class ClinicalWorkflowTests(unittest.TestCase):
@@ -148,15 +155,38 @@ class ClinicalWorkflowTests(unittest.TestCase):
 
         self.assertIsNone(_completed_task_record(TimedOutEvent(), [late_record], timeout=300))
 
-    def test_timed_out_image_advances_progress_and_fails_patient(self):
+    def test_closed_result_gate_rejects_late_callback(self):
+        output = []
+        event = threading.Event()
+        gate = _TaskResultGate(event, output)
+        gate.close()
+
+        self.assertFalse(gate.accept(object()))
+        self.assertEqual(output, [])
+        self.assertFalse(event.is_set())
+
+    @staticmethod
+    def _inference_result():
+        return SimpleNamespace(
+            prob_normal=0.8,
+            prob_cancer=0.1,
+            prob_polyp=0.1,
+            predicted_class="normal",
+            confidence=0.8,
+            gradcam_path="",
+            inference_ms=10,
+            model_version="test",
+        )
+
+    def test_timed_out_image_fails_batch_stops_work_and_ignores_late_callback(self):
         job = BatchJob(
             job_id="batch-timeout",
             user_id=self.user.user_id,
             status="running",
-            total_patients=1,
-            total_images=1,
+            total_patients=2,
+            total_images=2,
         )
-        case = Case(
+        first_case = Case(
             case_id="case-timeout",
             patient_no="p-timeout",
             check_project="ultrasound",
@@ -164,9 +194,18 @@ class ClinicalWorkflowTests(unittest.TestCase):
             doctor_id=self.user.user_id,
             batch_job_id=job.job_id,
         )
-        self.db.add_all([job, case])
+        second_case = Case(
+            case_id="case-never-started",
+            patient_no="p-never-started",
+            check_project="ultrasound",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+        )
+        self.db.add_all([job, first_case, second_case])
         self.db.commit()
         session_factory = sessionmaker(bind=self.engine)
+        callbacks = []
 
         class TimedOutEvent:
             def wait(self, timeout):
@@ -185,18 +224,36 @@ class ClinicalWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             image_path = Path(tmpdir) / "image.bin"
             image_path.write_bytes(b"image")
+
+            def capture_callback(task_id, **kwargs):
+                callbacks.append((task_id, kwargs["on_complete"]))
+
             with (
                 patch("app.services.batch_pipeline.DATA_DIR", Path(tmpdir)),
                 patch("app.services.batch_pipeline.SessionLocal", session_factory),
                 patch("app.services.batch_pipeline.threading.Event", TimedOutEvent),
                 patch("app.services.batch_pipeline.threading.Thread", InlineThread),
-                patch("app.services.batch_pipeline.queue.submit_per_image"),
+                patch("app.services.batch_pipeline.queue.submit_per_image", side_effect=capture_callback),
+                patch("app.services.batch_pipeline.queue.cancel", create=True) as cancel_task,
             ):
                 _start_serial_batch_worker(
                     job.job_id,
-                    [(case.case_id, case.check_project, case.clinical_text, [{"id": 1, "image_path": image_path.name}])],
+                    [
+                        (first_case.case_id, first_case.check_project, first_case.clinical_text, [{"id": 1, "image_path": image_path.name}]),
+                        (second_case.case_id, second_case.check_project, second_case.clinical_text, [{"id": 2, "image_path": image_path.name}]),
+                    ],
                     "mean",
                 )
+                cancel_task.assert_called_once_with(callbacks[0][0])
+
+            task_id, late_callback = callbacks[0]
+            late_callback(TaskRecord(
+                task_id=task_id,
+                kind="per_image",
+                priority=5,
+                status="done",
+                result=self._inference_result(),
+            ))
 
         self.db.expire_all()
         updated = self.db.query(BatchJob).filter(BatchJob.job_id == job.job_id).one()
@@ -204,8 +261,110 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(updated.completed_patients, 1)
         self.assertEqual(updated.failed_patients, 1)
         self.assertEqual(updated.succeeded_patients, 0)
-        self.assertEqual(updated.status, "completed")
-        self.assertEqual(self.db.query(Prediction).filter(Prediction.case_id == case.case_id).count(), 0)
+        self.assertEqual(updated.status, "failed")
+        self.assertIn("超时", updated.error_message)
+        self.assertEqual(len(callbacks), 1)
+        self.assertEqual(self.db.query(Prediction).count(), 0)
+
+    def test_cancellation_during_last_image_is_not_overwritten_by_completion(self):
+        job = BatchJob(
+            job_id="batch-cancel-race",
+            user_id=self.user.user_id,
+            status="running",
+            total_patients=1,
+            total_images=1,
+        )
+        case = Case(
+            case_id="case-cancel-race",
+            patient_no="p-cancel-race",
+            check_project="ultrasound",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+        )
+        image = CaseImage(
+            case_id=case.case_id,
+            image_path="image.bin",
+            image_format="jpg",
+            sequence=1,
+        )
+        self.db.add_all([job, case, image])
+        self.db.commit()
+        session_factory = sessionmaker(bind=self.engine)
+
+        class InlineThread:
+            def __init__(self, *, target, **kwargs):
+                self.target = target
+
+            def start(self):
+                self.target()
+
+        def cancel_then_complete(task_id, **kwargs):
+            other_db = session_factory()
+            try:
+                current = other_db.query(BatchJob).filter(BatchJob.job_id == job.job_id).one()
+                current.status = "cancelled"
+                current.finished_at = datetime.now(timezone.utc)
+                other_db.commit()
+            finally:
+                other_db.close()
+            kwargs["on_complete"](TaskRecord(
+                task_id=task_id,
+                kind="per_image",
+                priority=5,
+                status="done",
+                result=self._inference_result(),
+            ))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            (Path(tmpdir) / image.image_path).write_bytes(b"image")
+            with (
+                patch("app.services.batch_pipeline.DATA_DIR", Path(tmpdir)),
+                patch("app.services.batch_pipeline.SessionLocal", session_factory),
+                patch("app.services.batch_pipeline.threading.Thread", InlineThread),
+                patch("app.services.batch_pipeline.queue.submit_per_image", side_effect=cancel_then_complete),
+            ):
+                _start_serial_batch_worker(
+                    job.job_id,
+                    [(case.case_id, case.check_project, case.clinical_text, [{"id": image.id, "image_path": image.image_path}])],
+                    "mean",
+                )
+
+        self.db.expire_all()
+        updated = self.db.query(BatchJob).filter(BatchJob.job_id == job.job_id).one()
+        self.assertEqual(updated.status, "cancelled")
+        self.assertEqual(updated.completed_patients, 0)
+        self.assertEqual(self.db.query(Prediction).count(), 0)
+
+    def test_submit_batch_counts_only_persisted_images(self):
+        session_factory = sessionmaker(bind=self.engine)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            skipped = root / "skipped.dcm"
+            valid = root / "valid.jpg"
+            skipped.write_bytes(b"dcm")
+            valid.write_bytes(b"jpg")
+
+            def save_image(content, filename):
+                if filename.endswith(".dcm"):
+                    return "skipped.dcm", "dcm", ""
+                return "valid.jpg", "jpg", ""
+
+            with (
+                patch("app.services.batch_pipeline.SessionLocal", session_factory),
+                patch("app.services.batch_pipeline.BATCH_DIR", root),
+                patch("app.services.batch_pipeline._safe_extract_zip"),
+                patch("app.services.batch_pipeline._parse_manifest", return_value=({"p-1": ("ultrasound", "")}, [])),
+                patch("app.services.batch_pipeline._collect_patient_images", return_value={"p-1": [skipped, valid]}),
+                patch("app.services.batch_pipeline.save_upload_with_preview", side_effect=save_image),
+                patch("app.services.batch_pipeline._start_serial_batch_worker") as start_worker,
+            ):
+                summary = submit_batch(b"zip", user_id=self.user.user_id, aggregation_strategy="mean")
+
+        persisted = self.db.query(BatchJob).filter(BatchJob.job_id == summary["job_id"]).one()
+        self.assertEqual(summary["total_images"], 1)
+        self.assertEqual(persisted.total_images, 1)
+        self.assertEqual(len(start_worker.call_args.args[1][0][3]), 1)
 
     def test_batch_status_returns_job_error_message(self):
         job = BatchJob(
@@ -213,6 +372,8 @@ class ClinicalWorkflowTests(unittest.TestCase):
             user_id=self.user.user_id,
             status="failed",
             error_message="没有有效图像",
+            total_images=2,
+            completed_images=1,
         )
         self.db.add(job)
         self.db.commit()
@@ -220,6 +381,183 @@ class ClinicalWorkflowTests(unittest.TestCase):
         response = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
 
         self.assertEqual(response.error, "没有有效图像")
+        self.assertEqual(response.estimated_remaining_ms, 0)
+
+    def test_cancel_during_final_aggregation_has_consistent_terminal_state(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine = create_engine(
+                f"sqlite:///{Path(tmpdir) / 'race.db'}",
+                connect_args={"check_same_thread": False, "timeout": 5},
+            )
+            Base.metadata.create_all(engine)
+            factory = sessionmaker(bind=engine)
+            db = factory()
+            user = User(user_id="race-doctor", display_name="", password_hash="unused")
+            job = BatchJob(
+                job_id="batch-final-race",
+                user_id=user.user_id,
+                status="running",
+                total_patients=1,
+                total_images=1,
+            )
+            case = Case(
+                case_id="case-final-race",
+                patient_no="p-final-race",
+                check_project="ultrasound",
+                clinical_text="",
+                doctor_id=user.user_id,
+                batch_job_id=job.job_id,
+            )
+            image = CaseImage(case_id=case.case_id, image_path="image.bin", image_format="jpg", sequence=1)
+            db.add_all([user, job, case, image])
+            db.commit()
+
+            aggregate_entered = threading.Event()
+            release_aggregate = threading.Event()
+            cancel_done = threading.Event()
+
+            class BlockingStrategy:
+                def aggregate(self, results):
+                    aggregate_entered.set()
+                    release_aggregate.wait(timeout=5)
+                    return SimpleNamespace(
+                        strategy="mean",
+                        threshold=0.0,
+                        prob_normal=0.8,
+                        prob_cancer=0.1,
+                        prob_polyp=0.1,
+                        predicted_class="normal",
+                        confidence=0.8,
+                        image_count=1,
+                    )
+
+            def finish_immediately(task_id, **kwargs):
+                kwargs["on_complete"](TaskRecord(
+                    task_id=task_id,
+                    kind="per_image",
+                    priority=5,
+                    status="done",
+                    result=self._inference_result(),
+                ))
+
+            def request_cancel():
+                cancel_batch(job.job_id, user_id=user.user_id)
+                cancel_done.set()
+
+            (Path(tmpdir) / image.image_path).write_bytes(b"image")
+            with (
+                patch("app.services.batch_pipeline.DATA_DIR", Path(tmpdir)),
+                patch("app.services.batch_pipeline.SessionLocal", factory),
+                patch("app.services.batch_pipeline.get_strategy", return_value=BlockingStrategy()),
+                patch("app.services.batch_pipeline.queue.submit_per_image", side_effect=finish_immediately),
+            ):
+                _start_serial_batch_worker(
+                    job.job_id,
+                    [(case.case_id, case.check_project, case.clinical_text, [{"id": image.id, "image_path": image.image_path}])],
+                    "mean",
+                )
+                self.assertTrue(aggregate_entered.wait(timeout=2))
+                cancel_thread = threading.Thread(target=request_cancel)
+                cancel_thread.start()
+                cancel_won_before_release = cancel_done.wait(timeout=0.2)
+                release_aggregate.set()
+                cancel_thread.join(timeout=5)
+                self.assertTrue(cancel_done.is_set())
+
+                for _ in range(100):
+                    db.expire_all()
+                    terminal = db.query(BatchJob).filter(BatchJob.job_id == job.job_id).one()
+                    if terminal.status in ("completed", "cancelled", "failed"):
+                        break
+                    threading.Event().wait(0.01)
+
+            db.expire_all()
+            terminal = db.query(BatchJob).filter(BatchJob.job_id == job.job_id).one()
+            prediction_count = db.query(Prediction).filter(Prediction.case_id == case.case_id).count()
+            if cancel_won_before_release:
+                self.assertEqual(terminal.status, "cancelled")
+                self.assertEqual(terminal.completed_patients, 0)
+                self.assertEqual(terminal.succeeded_patients, 0)
+                self.assertEqual(prediction_count, 0)
+            else:
+                self.assertEqual(terminal.status, "completed")
+                self.assertEqual(terminal.completed_patients, 1)
+                self.assertEqual(terminal.succeeded_patients, 1)
+                self.assertEqual(prediction_count, 1)
+            db.close()
+            engine.dispose()
+
+    def test_cancel_committed_before_final_write_lock_wins(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine = create_engine(
+                f"sqlite:///{Path(tmpdir) / 'cancel-first.db'}",
+                connect_args={"check_same_thread": False, "timeout": 5},
+            )
+            Base.metadata.create_all(engine)
+            factory = sessionmaker(bind=engine)
+            db = factory()
+            user = User(user_id="cancel-first-doctor", display_name="", password_hash="unused")
+            job = BatchJob(
+                job_id="batch-cancel-first",
+                user_id=user.user_id,
+                status="running",
+                total_patients=1,
+                total_images=1,
+            )
+            case = Case(
+                case_id="case-cancel-first",
+                patient_no="p-cancel-first",
+                check_project="ultrasound",
+                clinical_text="",
+                doctor_id=user.user_id,
+                batch_job_id=job.job_id,
+            )
+            image = CaseImage(case_id=case.case_id, image_path="image.bin", image_format="jpg", sequence=1)
+            db.add_all([user, job, case, image])
+            db.commit()
+            before_lock = threading.Event()
+            release_worker = threading.Event()
+
+            def pause_before_lock(worker_db):
+                before_lock.set()
+                release_worker.wait(timeout=5)
+                _begin_immediate_batch(worker_db)
+
+            def finish_immediately(task_id, **kwargs):
+                kwargs["on_complete"](TaskRecord(
+                    task_id=task_id,
+                    kind="per_image",
+                    priority=5,
+                    status="done",
+                    result=self._inference_result(),
+                ))
+
+            (Path(tmpdir) / image.image_path).write_bytes(b"image")
+            with (
+                patch("app.services.batch_pipeline.DATA_DIR", Path(tmpdir)),
+                patch("app.services.batch_pipeline.SessionLocal", factory),
+                patch("app.services.batch_pipeline._begin_immediate_batch", side_effect=pause_before_lock),
+                patch("app.services.batch_pipeline.queue.submit_per_image", side_effect=finish_immediately),
+            ):
+                worker = _start_serial_batch_worker(
+                    job.job_id,
+                    [(case.case_id, case.check_project, case.clinical_text, [{"id": image.id, "image_path": image.image_path}])],
+                    "mean",
+                )
+                self.assertTrue(before_lock.wait(timeout=2))
+                self.assertTrue(cancel_batch(job.job_id, user_id=user.user_id))
+                release_worker.set()
+                worker.join(timeout=5)
+                self.assertFalse(worker.is_alive())
+
+            db.expire_all()
+            terminal = db.query(BatchJob).filter(BatchJob.job_id == job.job_id).one()
+            self.assertEqual(terminal.status, "cancelled")
+            self.assertEqual(terminal.completed_patients, 0)
+            self.assertEqual(terminal.succeeded_patients, 0)
+            self.assertEqual(db.query(Prediction).filter(Prediction.case_id == case.case_id).count(), 0)
+            db.close()
+            engine.dispose()
 
     def test_unexpected_worker_error_records_failure_reason(self):
         job = BatchJob(
