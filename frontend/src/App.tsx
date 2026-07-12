@@ -40,6 +40,7 @@ export default function App() {
                 <Route path="/" element={<Predict />} />
                 <Route path="/predict" element={<Navigate to="/" replace />} />
                 <Route path="/batch" element={<Batch />} />
+                <Route path="/batch/running" element={<BatchHistory mode="running" />} />
                 <Route path="/batch/history" element={<BatchHistory />} />
                 <Route path="/batch/:jobId" element={<BatchDetail />} />
                 <Route path="/history" element={<History />} />

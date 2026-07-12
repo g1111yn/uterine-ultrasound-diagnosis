@@ -12,7 +12,7 @@ from fastapi import Request
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.api.batch import get_batch_status
+from app.api.batch import get_batch_status, list_batch_jobs
 from app.api.cases import get_case, submit_judgment
 from app.models.db import Base, BatchJob, Case, CaseImage, Judgment, Prediction, User
 from app.models.schemas import (
@@ -488,6 +488,44 @@ class ClinicalWorkflowTests(unittest.TestCase):
 
         self.assertEqual(response.error, "没有有效图像")
         self.assertEqual(response.estimated_remaining_ms, 0)
+
+    def test_batch_job_list_filters_running_jobs_within_current_user(self):
+        other = User(user_id="other-doctor", display_name="其他医生", password_hash="unused")
+        self.db.add_all([
+            other,
+            BatchJob(job_id="mine-running", user_id=self.user.user_id, status="running"),
+            BatchJob(job_id="mine-completed", user_id=self.user.user_id, status="completed"),
+            BatchJob(job_id="other-running", user_id=other.user_id, status="running"),
+        ])
+        self.db.commit()
+
+        response = asyncio.run(list_batch_jobs(
+            page=1,
+            page_size=20,
+            status="running",
+            db=self.db,
+            current_user=self.user,
+        ))
+
+        self.assertEqual(response.total, 1)
+        self.assertEqual([item.job_id for item in response.items], ["mine-running"])
+
+    def test_batch_api_exposes_internal_pending_status_as_queued(self):
+        job = BatchJob(job_id="mine-pending", user_id=self.user.user_id, status="pending")
+        self.db.add(job)
+        self.db.commit()
+
+        listing = asyncio.run(list_batch_jobs(
+            page=1,
+            page_size=20,
+            status=None,
+            db=self.db,
+            current_user=self.user,
+        ))
+        detail = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
+
+        self.assertEqual(listing.items[0].status, "queued")
+        self.assertEqual(detail.status, "queued")
 
     def test_cancel_during_final_aggregation_has_consistent_terminal_state(self):
         with tempfile.TemporaryDirectory() as tmpdir:

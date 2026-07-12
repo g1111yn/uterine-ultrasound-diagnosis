@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import { getBatchStatus, getCaseDetail, getImageUrl } from '@/api/client'
+import { cancelBatch, getBatchStatus, getCaseDetail, getImageUrl } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
 import ClassBadge from '@/components/ClassBadge'
 import ProbabilityBars from '@/components/ProbabilityBars'
 import { classFromLabel } from '@/lib/classification'
-import type { BatchResultItem } from '@/lib/types'
+import type { BatchJobStatus, BatchResultItem } from '@/lib/types'
+import BatchNav from '@/components/BatchNav'
+import WorkspaceContainer from '@/components/WorkspaceContainer'
 
 const CLASS_COLORS: Record<string, string> = {
   normal: 'border-success-border bg-success-bg text-success-text',
@@ -167,6 +169,45 @@ function PatientDetail({ caseId }: { caseId: string }) {
   )
 }
 
+export function BatchCancelButton({ jobId, status }: { jobId: string; status: BatchJobStatus }) {
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: () => cancelBatch(jobId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['batch-status', jobId] }),
+        queryClient.invalidateQueries({ queryKey: ['batch-jobs'] }),
+      ])
+    },
+  })
+
+  if (status !== 'queued' && status !== 'running') return null
+
+  const requestCancel = () => {
+    if (window.confirm('确定要取消这个批量任务吗？已完成的结果将保留。')) {
+      mutation.mutate()
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <button
+        type="button"
+        onClick={requestCancel}
+        disabled={mutation.isPending}
+        className="rounded-md border border-danger-border bg-danger-bg px-3 py-1.5 text-xs font-medium text-danger-text hover:opacity-80 disabled:opacity-50 transition-opacity"
+      >
+        {mutation.isPending ? '正在取消...' : '取消任务'}
+      </button>
+      {mutation.isError && (
+        <span role="alert" className="text-[11px] text-danger-text">
+          {mutation.error.message}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export default function BatchDetail() {
   const { jobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
@@ -184,9 +225,9 @@ export default function BatchDetail() {
 
   if (isLoading || !data) {
     return (
-      <div className="max-w-6xl mx-auto flex items-center justify-center h-64">
+      <WorkspaceContainer className="flex items-center justify-center h-64">
         <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
-      </div>
+      </WorkspaceContainer>
     )
   }
 
@@ -206,7 +247,8 @@ export default function BatchDetail() {
   const totalCompleted = completedResults.length
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <WorkspaceContainer>
+      <BatchNav />
       {/* 顶部 */}
       <div className="flex items-center gap-3 mb-4">
         <button
@@ -224,7 +266,14 @@ export default function BatchDetail() {
             {data.started_at && ` · ${formatDateTime(data.started_at)}`}
           </div>
         </div>
+        <BatchCancelButton jobId={data.job_id} status={data.status} />
       </div>
+
+      {data.status === 'failed' && data.error && (
+        <div className="rounded-md border border-danger-border bg-danger-bg p-3 text-xs text-danger-text mb-4">
+          {data.error}
+        </div>
+      )}
 
       {/* 进度条（运行中时显示） */}
       {isRunning && (
@@ -317,6 +366,6 @@ export default function BatchDetail() {
           )}
         </div>
       </div>
-    </div>
+    </WorkspaceContainer>
   )
 }

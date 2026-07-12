@@ -5,6 +5,7 @@ import type {
   BatchSubmitResponse,
   BatchStatusResponse,
   BatchJobListResponse,
+  BatchJobStatus,
   CaseListResponse,
   CaseListParams,
   CaseDetail,
@@ -160,9 +161,13 @@ export async function postBatchPredict(
   return data
 }
 
-export async function getBatchJobs(page = 1, pageSize = 20): Promise<BatchJobListResponse> {
+export async function getBatchJobs(
+  page = 1,
+  pageSize = 20,
+  status?: BatchJobStatus,
+): Promise<BatchJobListResponse> {
   const { data } = await client.get<BatchJobListResponse>('/batch', {
-    params: { page, page_size: pageSize },
+    params: { page, page_size: pageSize, ...(status && { status }) },
   })
   return data
 }

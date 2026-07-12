@@ -19,6 +19,10 @@ from app.services.batch_pipeline import BatchError, cancel_batch, submit_batch
 router = APIRouter()
 
 
+def _public_status(status: str) -> str:
+    return "queued" if status == "pending" else status
+
+
 def _err(code: str, message: str, status: int = 400, details: list[dict] | None = None):
     body: dict = {"error": {"code": code, "message": message}}
     if details:
@@ -30,10 +34,13 @@ def _err(code: str, message: str, status: int = 400, details: list[dict] | None 
 async def list_batch_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    status: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.require_user),
 ):
     q = db.query(BatchJob).filter(BatchJob.user_id == current_user.user_id)
+    if status:
+        q = q.filter(BatchJob.status == status)
     total = q.count()
     jobs = (
         q.order_by(BatchJob.started_at.desc())
@@ -44,7 +51,7 @@ async def list_batch_jobs(
     items = [
         BatchJobListItem(
             job_id=j.job_id,
-            status=j.status,
+            status=_public_status(j.status),
             total_patients=j.total_patients,
             completed_patients=j.completed_patients,
             succeeded_patients=j.succeeded_patients,
@@ -156,7 +163,7 @@ async def get_batch_status(
         failed_patients=job.failed_patients,
         total_images=job.total_images,
         completed_images=job.completed_images,
-        status=job.status,
+        status=_public_status(job.status),
         error=job.error_message or None,
         aggregation_strategy=job.aggregation_strategy,
         current_patient=job.current_patient or "",

@@ -18,6 +18,8 @@ import type {
   AggregationStrategy,
   BatchDiagnostic,
 } from '@/lib/types'
+import BatchNav from '@/components/BatchNav'
+import WorkspaceContainer from '@/components/WorkspaceContainer'
 
 const strategyOptions: { value: AggregationStrategy; label: string; hint: string }[] = [
   { value: 'mean', label: '平均（mean）', hint: '推荐，对多张图概率取均值，结果稳健' },
@@ -144,19 +146,23 @@ export default function Batch() {
   }, [])
 
   return (
-    <div className="max-w-6xl mx-auto pb-12">
-      <div className="mb-6">
+    <WorkspaceContainer className="pb-12">
+      <BatchNav />
+      <div className="mb-4">
         <h1 className="text-text-primary text-base font-medium">批量推理</h1>
         <p className="text-[11px] text-text-tertiary mt-1 leading-relaxed">
-          一次提交多个病人，系统在后台逐个推理。左侧为操作说明，右侧直接上传提交。
+          一次提交多个病人，系统在后台逐个推理。
         </p>
       </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(360px,420px)] gap-5">
-            {/* 左栏 — 操作说明 */}
-            <div className="space-y-3 order-2 lg:order-1">
+          <div className="flex flex-col gap-4">
+            <details className="order-2 rounded-lg border border-border bg-bg-primary">
+              <summary className="cursor-pointer px-4 py-3 text-xs font-medium text-text-secondary hover:bg-bg-tertiary transition-colors">
+                上传文件准备说明
+              </summary>
+              <div className="space-y-3 px-4 pb-4">
               {/* Step 1 — 准备 manifest.csv */}
-              <section className="rounded-lg border border-border bg-bg-primary p-5">
+              <section className="p-3">
                 <div className="flex items-start justify-between gap-4">
                   <StepHeader
                     index={1}
@@ -232,7 +238,7 @@ export default function Batch() {
               </section>
 
               {/* Step 2 — 组织图像目录 */}
-              <section className="rounded-lg border border-border bg-bg-primary p-5">
+              <section className="border-t border-border p-3 pt-4">
                 <StepHeader
                   index={2}
                   title="组织图像目录"
@@ -269,11 +275,11 @@ export default function Batch() {
                   </ul>
                 </div>
               </section>
-            </div>
+              </div>
+            </details>
 
-            {/* 右栏 — 上传与提交（粘性定位，操作熟练后专注这里） */}
-            <div className="order-1 lg:order-2">
-              <section className="rounded-lg border border-border bg-bg-primary p-5 lg:sticky lg:top-4">
+            <div className="order-1">
+              <section className="rounded-lg border border-border bg-bg-primary p-5">
                 <div className="flex items-baseline gap-2 mb-3">
                   <FileUp className="w-3.5 h-3.5 self-center text-accent" />
                   <h2 className="text-sm font-medium text-text-primary leading-tight">
@@ -377,6 +383,6 @@ export default function Batch() {
               </section>
             </div>
           </div>
-    </div>
+    </WorkspaceContainer>
   )
 }
