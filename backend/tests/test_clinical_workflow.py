@@ -1,6 +1,7 @@
 import asyncio
 import tempfile
 import threading
+import time
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -26,11 +27,12 @@ from app.services.batch_pipeline import (
     _TaskResultGate,
     _completed_task_record,
     _fail_batch_without_work,
+    _fail_running_batch_on_timeout,
     _start_serial_batch_worker,
     cancel_batch,
     submit_batch,
 )
-from app.services.inference_queue import TaskRecord
+from app.services.inference_queue import InferenceQueue, TaskRecord
 
 
 class ClinicalWorkflowTests(unittest.TestCase):
@@ -156,14 +158,83 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertIsNone(_completed_task_record(TimedOutEvent(), [late_record], timeout=300))
 
     def test_closed_result_gate_rejects_late_callback(self):
-        output = []
-        event = threading.Event()
-        gate = _TaskResultGate(event, output)
-        gate.close()
+        gate = _TaskResultGate()
+        self.assertIsNone(gate.wait_and_close(timeout=0.01))
 
         self.assertFalse(gate.accept(object()))
-        self.assertEqual(output, [])
-        self.assertFalse(event.is_set())
+
+    def test_real_queue_cancelled_queued_task_never_executes(self):
+        inference_queue = InferenceQueue()
+        getter_calls = []
+        completed = []
+        task = inference_queue.submit_per_image(
+            "queued-cancel",
+            priority=5,
+            image_bytes_getter=lambda: getter_calls.append(True) or b"image",
+            on_complete=completed.append,
+        )
+
+        self.assertTrue(inference_queue.cancel(task.task_id))
+        self.assertEqual(task.status, "cancelled")
+        self.assertIn("cancel", task.error.lower())
+        self.assertEqual(completed, [task])
+
+        inference_queue.start()
+        time.sleep(0.05)
+        inference_queue.stop()
+        self.assertEqual(getter_calls, [])
+
+    def test_real_queue_running_task_reports_it_cannot_be_cancelled(self):
+        inference_queue = InferenceQueue()
+        inference_started = threading.Event()
+        release_inference = threading.Event()
+        completed = threading.Event()
+
+        def blocking_predict(*args, **kwargs):
+            inference_started.set()
+            release_inference.wait(timeout=5)
+            return self._inference_result()
+
+        with patch("app.services.inference_queue.inferencer.predict", side_effect=blocking_predict):
+            task = inference_queue.submit_per_image(
+                "running-cancel",
+                priority=5,
+                image_bytes_getter=lambda: b"image",
+                on_complete=lambda record: completed.set(),
+            )
+            inference_queue.start()
+            self.assertTrue(inference_started.wait(timeout=2))
+            self.assertFalse(inference_queue.cancel(task.task_id))
+            self.assertEqual(task.status, "running")
+            release_inference.set()
+            self.assertTrue(completed.wait(timeout=2))
+            inference_queue.stop()
+
+    def test_timeout_failure_and_progress_use_one_commit(self):
+        job = BatchJob(
+            job_id="batch-atomic-timeout",
+            user_id=self.user.user_id,
+            status="running",
+            total_patients=2,
+            total_images=2,
+        )
+        self.db.add(job)
+        self.db.commit()
+
+        with patch.object(self.db, "commit", wraps=self.db.commit) as commit:
+            self.assertTrue(_fail_running_batch_on_timeout(
+                self.db,
+                job.job_id,
+                "图像推理超时",
+            ))
+
+        self.assertEqual(commit.call_count, 1)
+        self.db.refresh(job)
+        self.assertEqual(job.status, "failed")
+        self.assertEqual(job.error_message, "图像推理超时")
+        self.assertEqual(job.completed_images, 1)
+        self.assertEqual(job.completed_patients, 1)
+        self.assertEqual(job.failed_patients, 1)
 
     @staticmethod
     def _inference_result():
@@ -205,14 +276,7 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.db.add_all([job, first_case, second_case])
         self.db.commit()
         session_factory = sessionmaker(bind=self.engine)
-        callbacks = []
-
-        class TimedOutEvent:
-            def wait(self, timeout):
-                return False
-
-            def set(self):
-                pass
+        real_queue = InferenceQueue()
 
         class InlineThread:
             def __init__(self, *, target, **kwargs):
@@ -224,17 +288,13 @@ class ClinicalWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             image_path = Path(tmpdir) / "image.bin"
             image_path.write_bytes(b"image")
-
-            def capture_callback(task_id, **kwargs):
-                callbacks.append((task_id, kwargs["on_complete"]))
-
             with (
                 patch("app.services.batch_pipeline.DATA_DIR", Path(tmpdir)),
                 patch("app.services.batch_pipeline.SessionLocal", session_factory),
-                patch("app.services.batch_pipeline.threading.Event", TimedOutEvent),
                 patch("app.services.batch_pipeline.threading.Thread", InlineThread),
-                patch("app.services.batch_pipeline.queue.submit_per_image", side_effect=capture_callback),
-                patch("app.services.batch_pipeline.queue.cancel", create=True) as cancel_task,
+                patch("app.services.batch_pipeline.queue", real_queue),
+                patch("app.services.batch_pipeline.BATCH_IMAGE_TIMEOUT_SECONDS", 0.01),
+                patch("app.services.batch_pipeline.generate_task_id", return_value="real-timeout-task"),
             ):
                 _start_serial_batch_worker(
                     job.job_id,
@@ -244,16 +304,15 @@ class ClinicalWorkflowTests(unittest.TestCase):
                     ],
                     "mean",
                 )
-                cancel_task.assert_called_once_with(callbacks[0][0])
 
-            task_id, late_callback = callbacks[0]
-            late_callback(TaskRecord(
-                task_id=task_id,
-                kind="per_image",
-                priority=5,
-                status="done",
-                result=self._inference_result(),
-            ))
+            timed_out_task = real_queue.get("real-timeout-task")
+            self.assertIsNotNone(timed_out_task)
+            self.assertEqual(timed_out_task.status, "cancelled")
+            real_queue.start()
+            time.sleep(0.05)
+            real_queue.stop()
+            self.assertEqual(timed_out_task.status, "cancelled")
+            self.assertIsNone(timed_out_task.result)
 
         self.db.expire_all()
         updated = self.db.query(BatchJob).filter(BatchJob.job_id == job.job_id).one()
@@ -263,7 +322,6 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(updated.succeeded_patients, 0)
         self.assertEqual(updated.status, "failed")
         self.assertIn("超时", updated.error_message)
-        self.assertEqual(len(callbacks), 1)
         self.assertEqual(self.db.query(Prediction).count(), 0)
 
     def test_cancellation_during_last_image_is_not_overwritten_by_completion(self):

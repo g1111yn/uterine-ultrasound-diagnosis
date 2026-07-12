@@ -41,6 +41,7 @@ from app.utils.image import save_upload_with_preview
 
 
 BATCH_PRIORITY = 5
+BATCH_IMAGE_TIMEOUT_SECONDS = float(os.getenv("BATCH_IMAGE_TIMEOUT_SECONDS", "300"))
 MAX_UNCOMPRESSED_BYTES = int(os.getenv("BATCH_MAX_UNCOMPRESSED_BYTES", str(500 * 1024 * 1024)))  # 500 MB
 MAX_IMAGES_PER_PATIENT_BATCH = int(os.getenv("BATCH_MAX_IMAGES_PER_PATIENT", "30"))
 ALLOWED_EXTS = {"jpg", "jpeg", "png", "bmp", "tif", "tiff", "dcm"}
@@ -91,34 +92,54 @@ def _transition_running_batch(db, job_id: str, status: str, *, error_message: st
     return bool(updated)
 
 
+def _fail_running_batch_on_timeout(db, job_id: str, error_message: str) -> bool:
+    updated = (
+        db.query(BatchJob)
+        .filter(BatchJob.job_id == job_id, BatchJob.status == "running")
+        .update(
+            {
+                BatchJob.status: "failed",
+                BatchJob.finished_at: datetime.now(timezone.utc),
+                BatchJob.error_message: error_message,
+                BatchJob.completed_images: BatchJob.completed_images + 1,
+                BatchJob.completed_patients: BatchJob.completed_patients + 1,
+                BatchJob.failed_patients: BatchJob.failed_patients + 1,
+            },
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    return bool(updated)
+
+
 def _begin_immediate_batch(db) -> None:
     db.connection().exec_driver_sql("BEGIN IMMEDIATE")
 
 
-def _cancel_inference_task_if_supported(task_id: str) -> None:
-    cancel = getattr(queue, "cancel", None)
-    if callable(cancel):
-        cancel(task_id)
+def _cancel_inference_task(task_id: str) -> bool:
+    return queue.cancel(task_id)
 
 
 class _TaskResultGate:
-    def __init__(self, done_event, task_result: list):
-        self._done_event = done_event
-        self._task_result = task_result
+    def __init__(self):
+        self._condition = threading.Condition()
+        self._record: Optional[TaskRecord] = None
         self._accepting = True
-        self._lock = threading.Lock()
 
     def accept(self, record: TaskRecord) -> bool:
-        with self._lock:
+        with self._condition:
             if not self._accepting:
                 return False
-            self._task_result.append(record)
-            self._done_event.set()
+            self._record = record
+            self._condition.notify_all()
             return True
 
-    def close(self) -> None:
-        with self._lock:
+    def wait_and_close(self, timeout: float) -> Optional[TaskRecord]:
+        with self._condition:
+            if self._record is None:
+                self._condition.wait_for(lambda: self._record is not None, timeout=timeout)
             self._accepting = False
+            return self._record
 
 
 class BatchError(Exception):
@@ -519,9 +540,7 @@ def _start_serial_batch_worker(
                     img_path = DATA_DIR / ci["image_path"]
                     img_bytes = img_path.read_bytes()
                     task_id = generate_task_id("bimg")
-                    done_event = threading.Event()
-                    task_result: list = []  # mutable container for closure
-                    result_gate = _TaskResultGate(done_event, task_result)
+                    result_gate = _TaskResultGate()
 
                     def _on_done(
                         rec: TaskRecord,
@@ -539,8 +558,9 @@ def _start_serial_batch_worker(
                     )
 
                     # Block until this single image is done.
-                    task_record = _completed_task_record(done_event, task_result, timeout=300)
-                    result_gate.close()
+                    task_record = result_gate.wait_and_close(
+                        timeout=BATCH_IMAGE_TIMEOUT_SECONDS,
+                    )
 
                     # Cancellation may have happened while inference was running.
                     db.refresh(job)
@@ -548,19 +568,13 @@ def _start_serial_batch_worker(
                         return
 
                     if task_record is None:
-                        _cancel_inference_task_if_supported(task_id)
-                        if not _transition_running_batch(
+                        _cancel_inference_task(task_id)
+                        if not _fail_running_batch_on_timeout(
                             db,
                             job_id,
-                            "failed",
-                            error_message="图像推理超时，批量任务已停止，请重新提交。",
+                            "图像推理超时，批量任务已停止，请重新提交。",
                         ):
                             return
-                        db.refresh(job)
-                        job.completed_images += 1
-                        job.completed_patients += 1
-                        job.failed_patients += 1
-                        db.commit()
                         return
 
                     # Update completed_images immediately.
