@@ -357,6 +357,44 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     expect(getCaseDetail).toHaveBeenCalledWith('case-2')
   })
 
+  it('falls back to all and selects the first real failed case when all patients failed', async () => {
+    const firstFailed = { ...results[4], patient_no: 'P-FAIL-1', case_id: 'case-fail-1' }
+    const secondFailed = { ...results[4], patient_no: 'P-FAIL-2', case_id: 'case-fail-2' }
+    renderPage(makeBatchStatus({ results: [firstFailed, secondFailed] }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '全部 2' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+    expect(screen.getByRole('button', { name: /患者 P-FAIL-1/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('region', { name: '医生确认' })).toHaveTextContent(
+      '原始 DICOM 文件损坏，无法完成推理',
+    )
+  })
+
+  it('falls back to all and loads the first real case when all patients are pending', async () => {
+    const firstPending = { ...results[0], patient_no: 'P-WAIT-1', case_id: 'case-wait-1' }
+    const secondPending = { ...results[0], patient_no: 'P-WAIT-2', case_id: 'case-wait-2' }
+    renderPage(makeBatchStatus({ results: [firstPending, secondPending] }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '全部 2' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+    expect(screen.getByRole('button', { name: /患者 P-WAIT-1/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await waitFor(() => expect(getCaseDetail).toHaveBeenCalledWith('case-wait-1'))
+  })
+
   it('keeps the patient and form when a dirty switch is declined, then switches when accepted', async () => {
     const user = userEvent.setup()
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
@@ -405,6 +443,65 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     expect(note).toHaveValue('未保存的过滤测试')
   })
 
+  it('discards a dirty form and selects the first visible patient after confirmation', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderPage()
+
+    const note = await screen.findByRole('textbox', { name: '备注' })
+    await user.type(note, '不应保留的内容')
+    await user.click(screen.getByRole('button', { name: '已诊断 1' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /患者 P002/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      expect(getCaseDetail).toHaveBeenCalledWith('case-2')
+    })
+    expect(screen.getByRole('button', { name: '已诊断 1' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.queryByDisplayValue('不应保留的内容')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '备注' })).toHaveValue('已完成诊断')
+  })
+
+  it('preserves a clean visible patient and otherwise selects the first patient in the new filter', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByRole('textbox', { name: '备注' })
+
+    await user.click(screen.getByRole('button', { name: '全部 5' }))
+    expect(screen.getByRole('button', { name: /患者 P001/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    await user.click(screen.getByRole('button', { name: '已诊断 1' }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /患者 P002/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+  })
+
+  it('clears the selected workbench when the new filter has no real cases', async () => {
+    const user = userEvent.setup()
+    renderPage(makeBatchStatus({ results: [results[1]] }))
+    await screen.findByRole('textbox', { name: '备注' })
+
+    await user.click(screen.getByRole('button', { name: '推理失败 0' }))
+
+    expect(screen.getByRole('button', { name: '推理失败 0' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByText('请从患者队列中选择病例')).toBeVisible()
+    expect(screen.queryByRole('button', { name: '保存判断' })).not.toBeInTheDocument()
+  })
+
   it('keeps the primary save action on the current patient', async () => {
     const user = userEvent.setup()
     vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
@@ -440,6 +537,38 @@ describe('BatchDetail continuous diagnosis workflow', () => {
       'aria-pressed',
       'true',
     )
+  })
+
+  it('uses refreshed batch status to select a newly completed patient and skip a concurrent judgment', async () => {
+    const user = userEvent.setup()
+    const newlyCompleted: BatchResultItem = {
+      ...results[1],
+      patient_no: 'P005',
+      case_id: 'case-5',
+    }
+    const initial = makeBatchStatus({ results: [results[1], results[3]] })
+    const refreshed = makeBatchStatus({
+      results: [
+        { ...results[1], has_judgment: true },
+        { ...results[3], has_judgment: true },
+        newlyCompleted,
+      ],
+    })
+    vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
+    renderPage(initial)
+
+    await user.click(await screen.findByRole('radio', { name: '正常' }))
+    vi.mocked(getBatchStatus).mockResolvedValue(refreshed)
+    await user.click(screen.getByRole('button', { name: '保存并下一位' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /患者 P005/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      expect(getCaseDetail).toHaveBeenCalledWith('case-5')
+    })
+    expect(getCaseDetail).not.toHaveBeenCalledWith('case-3')
   })
 
   it('wraps once in response order and excludes the current patient', async () => {

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { cancelBatch, getBatchStatus } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
-import type { BatchJobStatus } from '@/lib/types'
+import type { BatchJobStatus, BatchStatusResponse } from '@/lib/types'
 import BatchNav from '@/components/BatchNav'
 import BatchPatientDiagnosis from '@/components/BatchPatientDiagnosis'
 import BatchPatientQueue, {
@@ -77,8 +77,10 @@ export function BatchCancelButton({ jobId, status }: { jobId: string; status: Ba
 export default function BatchDetail() {
   const { jobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [filter, setFilter] = useState<BatchPatientFilter>('unjudged')
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
+  const [selectionInitializedForJob, setSelectionInitializedForJob] = useState<string | null>(null)
   const [judgmentDirty, setJudgmentDirty] = useState(false)
   const [diagnosisVersion, setDiagnosisVersion] = useState(0)
   const [completionMessage, setCompletionMessage] = useState<string | null>(null)
@@ -100,12 +102,14 @@ export default function BatchDetail() {
     const selectionStillExists = selectedCaseId !== null && data.results.some(
       (item) => item.case_id === selectedCaseId,
     )
-    if (selectionStillExists) return
+    const selectionInitialized = selectionInitializedForJob === data.job_id
+    if (selectionInitialized && (selectionStillExists || selectedCaseId === null)) return
 
     const firstUnjudged = data.results.find(
       (item) => item.case_id !== null && matchesBatchPatientFilter(item, 'unjudged'),
     )
     if (firstUnjudged?.case_id) {
+      setSelectionInitializedForJob(data.job_id)
       setFilter('unjudged')
       setSelectedCaseId(firstUnjudged.case_id)
       return
@@ -114,11 +118,11 @@ export default function BatchDetail() {
     const firstSuccessful = data.results.find(
       (item) => item.case_id !== null && !item.error && !!item.predicted_class,
     )
-    if (firstSuccessful?.case_id) {
-      setFilter('all')
-      setSelectedCaseId(firstSuccessful.case_id)
-    }
-  }, [data, selectedCaseId])
+    const firstAvailable = firstSuccessful ?? data.results.find((item) => item.case_id !== null)
+    setSelectionInitializedForJob(data.job_id)
+    setFilter('all')
+    setSelectedCaseId(firstAvailable?.case_id ?? null)
+  }, [data, selectedCaseId, selectionInitializedForJob])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (isError) {
@@ -177,29 +181,47 @@ export default function BatchDetail() {
   }
   const changeFilter = (nextFilter: BatchPatientFilter) => {
     if (nextFilter === filter || !confirmDirtyTransition()) return
+    const visibleCases = data.results.filter(
+      (item) => item.case_id !== null && matchesBatchPatientFilter(item, nextFilter),
+    )
+    const selectionRemainsVisible = visibleCases.some(
+      (item) => item.case_id === selectedCaseId,
+    )
+    const nextCaseId = selectionRemainsVisible
+      ? selectedCaseId
+      : visibleCases[0]?.case_id ?? null
     if (judgmentDirty) {
       setJudgmentDirty(false)
       setDiagnosisVersion((version) => version + 1)
     }
     setCompletionMessage(null)
     setFilter(nextFilter)
+    setSelectedCaseId(nextCaseId)
   }
   const saveAndSelectNext = (caseId: string) => {
-    const currentIndex = data.results.findIndex((item) => item.case_id === caseId)
-    const count = data.results.length
-    for (let offset = 1; offset < count; offset += 1) {
-      const index = (currentIndex + offset + count) % count
-      const candidate = data.results[index]
-      if (
-        candidate.case_id !== null &&
-        candidate.case_id !== caseId &&
-        matchesBatchPatientFilter(candidate, 'unjudged')
-      ) {
-        setCompletionMessage(null)
-        setFilter('unjudged')
-        setSelectedCaseId(candidate.case_id)
-        return
-      }
+    const latestBatch = queryClient.getQueryData<BatchStatusResponse>([
+      'batch-status',
+      jobId,
+    ]) ?? data
+    const currentIndex = latestBatch.results.findIndex((item) => item.case_id === caseId)
+    const orderedCandidates = currentIndex >= 0
+      ? [
+          ...latestBatch.results.slice(currentIndex + 1),
+          ...latestBatch.results.slice(0, currentIndex),
+        ]
+      : latestBatch.results
+    const nextPatient = orderedCandidates.find(
+      (item) => (
+        item.case_id !== null &&
+        item.case_id !== caseId &&
+        matchesBatchPatientFilter(item, 'unjudged')
+      ),
+    )
+    if (nextPatient?.case_id) {
+      setCompletionMessage(null)
+      setFilter('unjudged')
+      setSelectedCaseId(nextPatient.case_id)
+      return
     }
     setCompletionMessage('本批次已全部诊断')
   }
