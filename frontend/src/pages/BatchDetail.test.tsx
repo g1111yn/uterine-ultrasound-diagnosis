@@ -305,6 +305,24 @@ describe('BatchDetail request errors', () => {
 })
 
 describe('BatchDetail continuous diagnosis workflow', () => {
+  it('shows independent diagnosis progress in the top header with failure-first counts', async () => {
+    const failedPrediction: BatchResultItem = {
+      ...results[1],
+      patient_no: 'P006',
+      case_id: 'case-6',
+      error: '模型结果无效',
+      has_judgment: true,
+    }
+    renderPage(makeBatchStatus({ results: [...results, failedPrediction] }))
+
+    const topProgress = await screen.findByRole('status', { name: '批量诊断进度' })
+    const queue = screen.getByRole('region', { name: '批量患者队列' })
+
+    expect(topProgress).toHaveTextContent(/^已诊断 1 \/ 可诊断 3$/)
+    expect(queue).not.toContainElement(topProgress)
+    expect(within(queue).getByText('已诊断 1 / 可诊断 3')).toBeVisible()
+  })
+
   it('selects the first successful unjudged patient while inference is running', async () => {
     renderPage()
 
@@ -318,7 +336,8 @@ describe('BatchDetail continuous diagnosis workflow', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.getByText('已诊断 1 / 可诊断 3')).toBeVisible()
+    expect(within(screen.getByRole('region', { name: '批量患者队列' }))
+      .getByText('已诊断 1 / 可诊断 3')).toBeVisible()
     expect(screen.getByText(/正在推理中/)).toBeVisible()
     await waitFor(() => expect(getCaseDetail).toHaveBeenCalledWith('case-1'))
   })

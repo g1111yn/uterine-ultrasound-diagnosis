@@ -158,6 +158,10 @@ export default function BatchDetail() {
   }
 
   const completedResults = data.results.filter((r) => r.predicted_class)
+  const diagnosableResults = data.results.filter(
+    (item) => !!item.predicted_class && !item.error,
+  )
+  const diagnosedCount = diagnosableResults.filter((item) => item.has_judgment).length
   const selectedItem = selectedCaseId
     ? data.results.find((item) => item.case_id === selectedCaseId) ?? null
     : null
@@ -316,7 +320,7 @@ export default function BatchDetail() {
     <WorkspaceContainer>
       <BatchNav />
       {/* 顶部 */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <button
           type="button"
           aria-label="返回批量任务历史"
@@ -333,6 +337,14 @@ export default function BatchDetail() {
             {data.total_patients} 病人 · {data.total_images} 图像 · {data.aggregation_strategy}
             {data.started_at && ` · ${formatDateTime(data.started_at)}`}
           </div>
+        </div>
+        <div
+          role="status"
+          aria-label="批量诊断进度"
+          aria-live="polite"
+          className="shrink-0 rounded-md border border-border bg-bg-primary px-3 py-1.5 text-[11px] tabular-nums text-text-secondary"
+        >
+          已诊断 {diagnosedCount} / 可诊断 {diagnosableResults.length}
         </div>
         <BatchCancelButton jobId={data.job_id} status={data.status} />
       </div>
