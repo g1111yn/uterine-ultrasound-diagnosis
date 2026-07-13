@@ -377,7 +377,7 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     )
   })
 
-  it('falls back to all and loads the first real case when all patients are pending', async () => {
+  it('shows all pending rows without auto-selecting or opening a judgment form', async () => {
     const firstPending = { ...results[0], patient_no: 'P-WAIT-1', case_id: 'case-wait-1' }
     const secondPending = { ...results[0], patient_no: 'P-WAIT-2', case_id: 'case-wait-2' }
     renderPage(makeBatchStatus({ results: [firstPending, secondPending] }))
@@ -390,9 +390,87 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     })
     expect(screen.getByRole('button', { name: /患者 P-WAIT-1/ })).toHaveAttribute(
       'aria-pressed',
+      'false',
+    )
+    expect(screen.getByRole('button', { name: /患者 P-WAIT-2/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(screen.getByText('请从患者队列中选择病例')).toBeVisible()
+    expect(screen.queryByRole('button', { name: '保存判断' })).not.toBeInTheDocument()
+    expect(getCaseDetail).not.toHaveBeenCalled()
+  })
+
+  it('shows a stable waiting view without loading details when a pending row is selected', async () => {
+    const user = userEvent.setup()
+    const pending = { ...results[0], patient_no: 'P-WAIT-1', case_id: 'case-wait-1' }
+    renderPage(makeBatchStatus({ results: [pending] }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '全部 1' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+    await user.click(screen.getByRole('button', { name: /患者 P-WAIT-1/ }))
+
+    expect(screen.getByRole('button', { name: /患者 P-WAIT-1/ })).toHaveAttribute(
+      'aria-pressed',
       'true',
     )
-    await waitFor(() => expect(getCaseDetail).toHaveBeenCalledWith('case-wait-1'))
+    expect(screen.getAllByText('等待推理完成')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: '保存判断' })).not.toBeInTheDocument()
+    expect(getCaseDetail).not.toHaveBeenCalled()
+  })
+
+  it('auto-selects a successful case when polling updates an initially empty response', async () => {
+    const initial = makeBatchStatus({ results: [] })
+    const polled = makeBatchStatus({ results: [results[1]] })
+    const { queryClient } = renderPage(initial)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '全部 0' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+    act(() => queryClient.setQueryData(['batch-status', 'job-1'], polled))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /患者 P001/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      expect(getCaseDetail).toHaveBeenCalledWith('case-1')
+    })
+  })
+
+  it('auto-selects a patient when an all-pending response later receives a prediction', async () => {
+    const predictedPending = {
+      ...results[1],
+      patient_no: results[0].patient_no,
+      case_id: results[0].case_id,
+    }
+    const initial = makeBatchStatus({ results: [results[0]] })
+    const polled = makeBatchStatus({ results: [predictedPending] })
+    const { queryClient } = renderPage(initial)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '全部 1' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+    expect(getCaseDetail).not.toHaveBeenCalled()
+    act(() => queryClient.setQueryData(['batch-status', 'job-1'], polled))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /患者 P000/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      expect(getCaseDetail).toHaveBeenCalledWith('case-pending')
+    })
   })
 
   it('keeps the patient and form when a dirty switch is declined, then switches when accepted', async () => {
@@ -497,6 +575,26 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     expect(screen.getByRole('button', { name: '推理失败 0' })).toHaveAttribute(
       'aria-pressed',
       'true',
+    )
+    expect(screen.getByText('请从患者队列中选择病例')).toBeVisible()
+    expect(screen.queryByRole('button', { name: '保存判断' })).not.toBeInTheDocument()
+  })
+
+  it('keeps an intentionally cleared filter unselected when polling adds a matching case', async () => {
+    const user = userEvent.setup()
+    const initial = makeBatchStatus({ results: [results[1]] })
+    const polled = makeBatchStatus({ results: [results[1], results[4]] })
+    const { queryClient } = renderPage(initial)
+    await screen.findByRole('textbox', { name: '备注' })
+
+    await user.click(screen.getByRole('button', { name: '推理失败 0' }))
+    expect(screen.getByText('请从患者队列中选择病例')).toBeVisible()
+
+    act(() => queryClient.setQueryData(['batch-status', 'job-1'], polled))
+
+    expect(await screen.findByRole('button', { name: /患者 P004/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
     )
     expect(screen.getByText('请从患者队列中选择病例')).toBeVisible()
     expect(screen.queryByRole('button', { name: '保存判断' })).not.toBeInTheDocument()

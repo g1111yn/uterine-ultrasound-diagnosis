@@ -80,7 +80,7 @@ export default function BatchDetail() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<BatchPatientFilter>('unjudged')
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
-  const [selectionInitializedForJob, setSelectionInitializedForJob] = useState<string | null>(null)
+  const [intentionallyClearedForJob, setIntentionallyClearedForJob] = useState<string | null>(null)
   const [judgmentDirty, setJudgmentDirty] = useState(false)
   const [diagnosisVersion, setDiagnosisVersion] = useState(0)
   const [completionMessage, setCompletionMessage] = useState<string | null>(null)
@@ -102,14 +102,15 @@ export default function BatchDetail() {
     const selectionStillExists = selectedCaseId !== null && data.results.some(
       (item) => item.case_id === selectedCaseId,
     )
-    const selectionInitialized = selectionInitializedForJob === data.job_id
-    if (selectionInitialized && (selectionStillExists || selectedCaseId === null)) return
+    const selectionIntentionallyCleared = (
+      intentionallyClearedForJob === data.job_id && selectedCaseId === null
+    )
+    if (selectionStillExists || selectionIntentionallyCleared) return
 
     const firstUnjudged = data.results.find(
       (item) => item.case_id !== null && matchesBatchPatientFilter(item, 'unjudged'),
     )
     if (firstUnjudged?.case_id) {
-      setSelectionInitializedForJob(data.job_id)
       setFilter('unjudged')
       setSelectedCaseId(firstUnjudged.case_id)
       return
@@ -118,11 +119,12 @@ export default function BatchDetail() {
     const firstSuccessful = data.results.find(
       (item) => item.case_id !== null && !item.error && !!item.predicted_class,
     )
-    const firstAvailable = firstSuccessful ?? data.results.find((item) => item.case_id !== null)
-    setSelectionInitializedForJob(data.job_id)
+    const firstFailed = data.results.find(
+      (item) => item.case_id !== null && !!item.error,
+    )
     setFilter('all')
-    setSelectedCaseId(firstAvailable?.case_id ?? null)
-  }, [data, selectedCaseId, selectionInitializedForJob])
+    setSelectedCaseId(firstSuccessful?.case_id ?? firstFailed?.case_id ?? null)
+  }, [data, intentionallyClearedForJob, selectedCaseId])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (isError) {
@@ -175,6 +177,7 @@ export default function BatchDetail() {
   )
   const selectPatient = (caseId: string) => {
     if (caseId === selectedCaseId || !confirmDirtyTransition()) return
+    setIntentionallyClearedForJob(null)
     setJudgmentDirty(false)
     setCompletionMessage(null)
     setSelectedCaseId(caseId)
@@ -197,6 +200,7 @@ export default function BatchDetail() {
     setCompletionMessage(null)
     setFilter(nextFilter)
     setSelectedCaseId(nextCaseId)
+    setIntentionallyClearedForJob(nextCaseId === null ? data.job_id : null)
   }
   const saveAndSelectNext = (caseId: string) => {
     const latestBatch = queryClient.getQueryData<BatchStatusResponse>([
@@ -219,6 +223,7 @@ export default function BatchDetail() {
     )
     if (nextPatient?.case_id) {
       setCompletionMessage(null)
+      setIntentionallyClearedForJob(null)
       setFilter('unjudged')
       setSelectedCaseId(nextPatient.case_id)
       return
@@ -290,7 +295,29 @@ export default function BatchDetail() {
         )}
       />
     )
-  } else if (selectedItem?.case_id) {
+  } else if (selectedItem?.case_id && !selectedItem.predicted_class) {
+    workbench = (
+      <ClinicalWorkbench
+        left={queue}
+        center={(
+          <div className={`${stablePanelClass} flex-col gap-2 text-center`}>
+            <div className="text-xs font-medium text-text-primary">等待推理完成</div>
+            <div className="text-[11px] text-text-tertiary">
+              患者 {selectedItem.patient_no} 的影像尚未产生 AI 结果
+            </div>
+          </div>
+        )}
+        right={(
+          <div className={`${stablePanelClass} flex-col gap-2 text-center`}>
+            <div className="text-xs font-medium text-text-primary">等待推理完成</div>
+            <div className="text-[11px] text-text-tertiary">
+              推理完成后将自动开放医生判断
+            </div>
+          </div>
+        )}
+      />
+    )
+  } else if (selectedItem?.case_id && selectedItem.predicted_class) {
     workbench = (
       <BatchPatientDiagnosis
         key={`${selectedItem.case_id}:${diagnosisVersion}`}
