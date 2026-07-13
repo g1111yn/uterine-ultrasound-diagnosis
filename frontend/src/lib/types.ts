@@ -15,6 +15,7 @@ export interface Probabilities {
 }
 
 export type PredictedClass = 'normal' | 'endometrial_cancer' | 'polyp'
+export type JudgmentClass = PredictedClass | 'indeterminate'
 
 // ========== 认证 ==========
 export type UserRole = 'admin' | 'doctor'
@@ -108,7 +109,7 @@ export interface TaskStatusResponse {
 
 // ========== 医生判断 ==========
 export interface Judgment {
-  final_class: PredictedClass
+  final_class: JudgmentClass
   final_class_zh: string
   recommendation: string
   note: string
@@ -117,9 +118,10 @@ export interface Judgment {
 }
 
 export interface JudgmentRequest {
-  final_class: PredictedClass
-  recommendation: string
+  final_class: JudgmentClass
+  recommendation?: string | null
   note: string
+  expected_judged_at?: string | null
 }
 
 export interface JudgmentResponse {
@@ -135,7 +137,7 @@ export interface CaseListItem {
   image_count: number
   predicted_class_zh: string
   confidence: number
-  doctor_judgment: PredictedClass | null
+  doctor_judgment: JudgmentClass | null
   doctor_judgment_zh: string | null
   agreement: boolean | null
   doctor_name: string | null
@@ -217,6 +219,8 @@ export interface BatchResultItem {
   predicted_class_zh: string | null
   confidence: number | null
   error: string | null
+  has_judgment: boolean
+  judgment_updated_at: string | null
 }
 
 export interface BatchJobListItem {

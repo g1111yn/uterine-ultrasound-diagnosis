@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="bg-decoration">
+    <path d="M84 118 C184 82, 272 86, 364 138 S564 204, 676 126 S910 42, 1128 116" fill="none" stroke="#D8D6CC" stroke-width="1.5" />
+    <path d="M164 586 C306 516, 438 622, 548 548 S718 404, 860 486 S1056 604, 1190 526" fill="none" stroke="#D8D6CC" stroke-width="1.5" />
+    <circle cx="1060" cy="170" r="106" fill="#E6F3F0" />
+    <circle cx="1060" cy="170" r="70" fill="#F7F6F0" stroke="#00796B" stroke-width="2" />
+    <path d="M1015 170 H1105 M1060 125 V215" stroke="#00796B" stroke-width="5" stroke-linecap="round" />
+    <circle cx="230" cy="508" r="78" fill="#FCEDE8" />
+    <path d="M192 508 C210 470, 244 470, 262 508 C244 546, 210 546, 192 508 Z" fill="none" stroke="#C15F3C" stroke-width="3" />
+    <circle cx="227" cy="508" r="9" fill="#C15F3C" />
+    <path d="M470 222 H524 L545 184 L584 292 L623 222 H694" fill="none" stroke="#00796B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
+  </g>
+
+  <g id="cover-title">
+    <text x="640" y="300" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="70" font-weight="700" fill="#1F1E1D">子宫超声辅助诊断系统</text>
+    <path fill="#00796B" d="M407,330 H873 A2,2 0 0 1 875,332 V332 A2,2 0 0 1 873,334 H407 A2,2 0 0 1 405,332 V332 A2,2 0 0 1 407,330 Z" />
+    <text x="640" y="388" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="26" fill="#6B6864">多模态 AI 支撑妇科超声的患者级风险提示与复核闭环</text>
+  </g>
+
+  <g id="cover-meta">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M494,452 H786 A26,26 0 0 1 812,478 V478 A26,26 0 0 1 786,504 H494 A26,26 0 0 1 468,478 V478 A26,26 0 0 1 494,452 Z" />
+    
+  <g transform="translate(498.0, 466.0)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M6 4h-1a2 2 0 0 0 -2 2v3.5a5.5 5.5 0 0 0 11 0v-3.5a2 2 0 0 0 -2 -2h-1" />
+    <path d="M8 15a6 6 0 1 0 12 0v-3" />
+    <path d="M11 3v2" />
+    <path d="M6 3v2" />
+    <path d="M18 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  </g>
+    <text x="536" y="485" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">项目汇报 · 2026-06-10</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">AI-assisted uterine ultrasound diagnosis</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">01 / 12</text>
+  </g>
+</svg>

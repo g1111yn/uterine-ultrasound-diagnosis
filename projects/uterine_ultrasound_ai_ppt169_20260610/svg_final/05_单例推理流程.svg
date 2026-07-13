@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B" />
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">单例推理围绕医生现场操作保持低等待感</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">任务提交后异步处理，前端持续反馈队列和运行状态，完成后回到病例详情。</text>
+  </g>
+
+  <g id="takeaway">
+    <path fill="#E6F3F0" stroke="#D8D6CC" d="M70,130 H1210 A14,14 0 0 1 1224,144 V166 A14,14 0 0 1 1210,180 H70 A14,14 0 0 1 56,166 V144 A14,14 0 0 1 70,130 Z" />
+    <text x="84" y="161" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#1F1E1D">医生看到的是连续进度反馈；系统内部则用 task_id、队列和聚合任务保证流程稳定。</text>
+  </g>
+
+  <g id="pipeline">
+    <line x1="158" y1="350" x2="1114" y2="350" stroke="#D8D6CC" stroke-width="3" />
+
+    <g id="step-input">
+      <circle cx="158" cy="350" r="42" fill="#FFFFFF" stroke="#00796B" stroke-width="2" />
+      
+  <g transform="translate(138.0, 330.0) scale(1.6666666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M6 4h-1a2 2 0 0 0 -2 2v3.5a5.5 5.5 0 0 0 11 0v-3.5a2 2 0 0 0 -2 -2h-1" />
+    <path d="M8 15a6 6 0 1 0 12 0v-3" />
+    <path d="M11 3v2" />
+    <path d="M6 3v2" />
+    <path d="M18 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  </g>
+      <text x="158" y="432" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">输入</text>
+      <text x="158" y="462" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">病例编号 / 检查方式</text>
+      <text x="158" y="485" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">1-30 张图像</text>
+    </g>
+
+    <line x1="210" y1="350" x2="296" y2="350" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="step-submit">
+      <circle cx="340" cy="350" r="42" fill="#FFFFFF" stroke="#00796B" stroke-width="2" />
+      
+  <g transform="translate(320.0, 330.0) scale(1.6666666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    <path d="M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0" />
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+  </g>
+      <text x="340" y="432" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">提交</text>
+      <text x="340" y="462" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">idempotency_key</text>
+      <text x="340" y="485" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">避免重复病例</text>
+    </g>
+
+    <line x1="392" y1="350" x2="478" y2="350" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="step-task">
+      <circle cx="522" cy="350" r="42" fill="#FFFFFF" stroke="#2F7C95" stroke-width="2" />
+      
+  <g transform="translate(502.0, 330.0) scale(1.6666666666666667)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+    <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" />
+    <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+  </g>
+      <text x="522" y="432" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">任务</text>
+      <text x="522" y="462" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">202 + task_id</text>
+      <text x="522" y="485" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">前端轮询状态</text>
+    </g>
+
+    <line x1="574" y1="350" x2="660" y2="350" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="step-infer">
+      <circle cx="704" cy="350" r="42" fill="#FFFFFF" stroke="#2F7C95" stroke-width="2" />
+      
+  <g transform="translate(684.0, 330.0) scale(1.6666666666666667)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8" />
+    <path d="M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8" />
+    <path d="M17.5 16a3.5 3.5 0 0 0 0 -7h-.5" />
+    <path d="M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0" />
+    <path d="M6.5 16a3.5 3.5 0 0 1 0 -7h.5" />
+    <path d="M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10" />
+  </g>
+      <text x="704" y="432" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">推理</text>
+      <text x="704" y="462" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">逐图分析</text>
+      <text x="704" y="485" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">患者级聚合</text>
+    </g>
+
+    <line x1="756" y1="350" x2="842" y2="350" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="step-result">
+      <circle cx="886" cy="350" r="42" fill="#FFFFFF" stroke="#C15F3C" stroke-width="2" />
+      
+  <g transform="translate(866.0, 330.0) scale(1.6666666666666667)" fill="none" stroke="#C15F3C" stroke-width="2">
+    <path d="M3 12h4.5l1.5 -6l4 12l2 -9l1.5 3h4.5" />
+  </g>
+      <text x="886" y="432" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">输出</text>
+      <text x="886" y="462" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">概率分布</text>
+      <text x="886" y="485" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">Grad-CAM</text>
+    </g>
+
+    <line x1="938" y1="350" x2="1024" y2="350" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <g id="step-review">
+      <circle cx="1068" cy="350" r="42" fill="#FFFFFF" stroke="#C15F3C" stroke-width="2" />
+      
+  <g transform="translate(1048.0, 330.0) scale(1.6666666666666667)" fill="none" stroke="#C15F3C" stroke-width="2">
+    <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+    <path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" />
+    <path d="M10 14l4 0" />
+    <path d="M12 12l0 4" />
+  </g>
+      <text x="1068" y="432" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">复核</text>
+      <text x="1068" y="462" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">医生判断</text>
+      <text x="1068" y="485" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">PDF 报告</text>
+    </g>
+  </g>
+
+  <g id="status-bar">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M195,558 H1085 A21,21 0 0 1 1106,579 V579 A21,21 0 0 1 1085,600 H195 A21,21 0 0 1 174,579 V579 A21,21 0 0 1 195,558 Z" />
+    <path fill="#E6F3F0" d="M195,558 H401 A21,21 0 0 1 422,579 V579 A21,21 0 0 1 401,600 H195 A21,21 0 0 1 174,579 V579 A21,21 0 0 1 195,558 Z" />
+    <rect x="422" y="558" width="302" height="42" fill="#E6F1FB" />
+    <path fill="#FCEDE8" d="M745,558 H1085 A21,21 0 0 1 1106,579 V579 A21,21 0 0 1 1085,600 H745 A21,21 0 0 1 724,579 V579 A21,21 0 0 1 745,558 Z" />
+    <text x="298" y="584" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="15" fill="#00796B">queued</text>
+    <text x="573" y="584" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="15" fill="#2F7C95">running</text>
+    <text x="915" y="584" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="15" fill="#C15F3C">done / failed</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: frontend/src/pages/Predict.tsx and backend queue APIs</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">05 / 12</text>
+  </g>
+</svg>

@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="684pt" height="247.248pt" viewBox="0 0 684 247.248" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-06-11T00:01:08.025036</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 247.248 
+L 684 247.248 
+L 684 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 258.343004 68.635477 
+C 228.2368 73.741642 202.520635 81.515316 183.789786 91.171979 
+C 165.058937 100.828643 153.965445 112.032137 151.628867 123.651803 
+L 201.058565 124.85376 
+C 202.788452 116.251129 211.001529 107.956613 224.868929 100.807294 
+C 238.73633 93.657975 257.775315 87.902728 280.06447 84.122374 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #dde9f5; stroke: #ffffff; stroke-width: 2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 483.818786 83.876329 
+C 461.405439 75.220148 432.828366 68.766694 400.971567 65.167252 
+C 369.114768 61.567809 335.087213 60.947678 302.322965 63.369442 
+L 312.625072 80.223661 
+C 336.882112 78.430706 362.074442 78.88982 385.659651 81.554671 
+C 409.244861 84.219521 430.401922 88.997341 446.995663 95.405952 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #dcedea; stroke: #ffffff; stroke-width: 2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 510.498187 159.435882 
+C 526.22371 149.151272 533.888749 137.605916 532.719748 125.964971 
+C 531.550747 114.324026 521.588399 102.992726 503.838106 93.114627 
+L 461.816984 102.245535 
+C 474.958429 109.558794 482.334062 117.947932 483.199533 126.566315 
+C 484.065004 135.184699 478.390185 143.732314 466.74778 151.346534 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #f4e3c8; stroke: #ffffff; stroke-width: 2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 302.322965 193.192478 
+C 335.087213 195.614242 369.114768 194.994111 400.971567 191.394668 
+C 432.828366 187.795226 461.405439 181.341772 483.818786 172.685591 
+L 446.995663 161.155968 
+C 430.401922 167.564579 409.244861 172.342399 385.659651 175.007249 
+C 362.074442 177.6721 336.882112 178.131214 312.625072 176.338259 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #f4d9d7; stroke: #ffffff; stroke-width: 2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 151.628867 132.910117 
+C 153.965445 144.529783 165.058937 155.733277 183.789786 165.389941 
+C 202.520635 175.046604 228.2368 182.820278 258.343004 187.926443 
+L 280.06447 172.439546 
+C 257.775315 168.659192 238.73633 162.903945 224.868929 155.754626 
+C 211.001529 148.605307 202.788452 140.310791 201.058565 131.70816 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #eef2f7; stroke: #ffffff; stroke-width: 2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 342 158.085504 
+C 364.730239 158.085504 386.532567 154.945109 402.605274 149.355955 
+C 418.67798 143.766801 427.7088 136.185217 427.7088 128.28096 
+C 427.7088 120.376703 418.67798 112.795119 402.605274 107.205965 
+C 386.532567 101.616811 364.730239 98.476416 342 98.476416 
+C 319.269761 98.476416 297.467433 101.616811 281.394726 107.205965 
+C 265.32202 112.795119 256.2912 120.376703 256.2912 128.28096 
+C 256.2912 136.185217 265.32202 143.766801 281.394726 149.355955 
+C 297.467433 154.945109 319.269761 158.085504 342 158.085504 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #ffffff; stroke: #a9b7b3; stroke-width: 1.35; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 328.608 147.374496 
+C 343.87988 147.374496 358.528319 145.264543 369.327168 141.50933 
+C 380.126018 137.754118 386.1936 132.660241 386.1936 127.349568 
+C 386.1936 122.038895 380.126018 116.945018 369.327168 113.189806 
+C 358.528319 109.434593 343.87988 107.32464 328.608 107.32464 
+C 313.33612 107.32464 298.687681 109.434593 287.888832 113.189806 
+C 277.089982 116.945018 271.0224 122.038895 271.0224 127.349568 
+C 271.0224 132.660241 277.089982 137.754118 287.888832 141.50933 
+C 298.687681 145.264543 313.33612 147.374496 328.608 147.374496 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #f7d75a; opacity: 0.46"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 362.088 145.74456 
+C 373.6307 145.74456 384.702194 144.149828 392.864116 141.311586 
+C 401.026037 138.473344 405.612 134.623321 405.612 130.60944 
+C 405.612 126.595559 401.026037 122.745536 392.864116 119.907294 
+C 384.702194 117.069052 373.6307 115.47432 362.088 115.47432 
+C 350.5453 115.47432 339.473806 117.069052 331.311884 119.907294 
+C 323.149963 122.745536 318.564 126.595559 318.564 130.60944 
+C 318.564 134.623321 323.149963 138.473344 331.311884 141.311586 
+C 339.473806 144.149828 350.5453 145.74456 362.088 145.74456 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #b64342; opacity: 0.23"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 69.4728 114.775776 
+L 182.6352 114.775776 
+Q 202.7232 114.775776 202.7232 107.790336 
+L 202.7232 85.902624 
+Q 202.7232 78.917184 182.6352 78.917184 
+L 69.4728 78.917184 
+Q 49.3848 78.917184 49.3848 85.902624 
+L 49.3848 107.790336 
+Q 49.3848 114.775776 69.4728 114.775776 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #ffffff; stroke: #00796b; stroke-width: 1.35; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 69.4728 184.630176 
+L 182.6352 184.630176 
+Q 202.7232 184.630176 202.7232 177.644736 
+L 202.7232 155.757024 
+Q 202.7232 148.771584 182.6352 148.771584 
+L 69.4728 148.771584 
+Q 49.3848 148.771584 49.3848 155.757024 
+L 49.3848 177.644736 
+Q 49.3848 184.630176 69.4728 184.630176 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #ffffff; stroke: #00796b; stroke-width: 1.35; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 501.3648 114.775776 
+L 614.5272 114.775776 
+Q 634.6152 114.775776 634.6152 107.790336 
+L 634.6152 85.902624 
+Q 634.6152 78.917184 614.5272 78.917184 
+L 501.3648 78.917184 
+Q 481.2768 78.917184 481.2768 85.902624 
+L 481.2768 107.790336 
+Q 481.2768 114.775776 501.3648 114.775776 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #ffffff; stroke: #0f4d92; stroke-width: 1.35; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 501.3648 184.630176 
+L 614.5272 184.630176 
+Q 634.6152 184.630176 634.6152 177.644736 
+L 634.6152 155.757024 
+Q 634.6152 148.771584 614.5272 148.771584 
+L 501.3648 148.771584 
+Q 481.2768 148.771584 481.2768 155.757024 
+L 481.2768 177.644736 
+Q 481.2768 184.630176 501.3648 184.630176 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #ffffff; stroke: #0f4d92; stroke-width: 1.35; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_14">
+    <path d="M 199.62128 96.010602 
+Q 229.809162 91.602087 255.650857 104.259969 
+" clip-path="url(#p4f899a220d)" style="fill: none; stroke: #00796b; stroke-width: 1.55; stroke-linecap: round"/>
+    <path d="M 252.667178 100.348746 
+L 255.650857 104.259969 
+L 250.731672 104.300178 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #00796b; stroke: #00796b; stroke-width: 1.55; stroke-linecap: round"/>
+   </g>
+   <g id="patch_15">
+    <path d="M 484.37872 96.010602 
+Q 454.190838 91.602087 428.349143 104.259969 
+" clip-path="url(#p4f899a220d)" style="fill: none; stroke: #0f4d92; stroke-width: 1.55; stroke-linecap: round"/>
+    <path d="M 433.268328 104.300178 
+L 428.349143 104.259969 
+L 431.332822 100.348746 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #0f4d92; stroke: #0f4d92; stroke-width: 1.55; stroke-linecap: round"/>
+   </g>
+   <g id="patch_16">
+    <path d="M 199.689285 166.880182 
+Q 232.034608 167.337649 257.459828 150.281395 
+" clip-path="url(#p4f899a220d)" style="fill: none; stroke: #00796b; stroke-width: 1.55; stroke-linecap: round"/>
+    <path d="M 252.580246 150.905639 
+L 257.459828 150.281395 
+L 255.031473 154.559607 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #00796b; stroke: #00796b; stroke-width: 1.55; stroke-linecap: round"/>
+   </g>
+   <g id="patch_17">
+    <path d="M 484.310447 166.850959 
+Q 452.644888 167.101046 427.863415 150.310673 
+" clip-path="url(#p4f899a220d)" style="fill: none; stroke: #0f4d92; stroke-width: 1.55; stroke-linecap: round"/>
+    <path d="M 430.272045 154.600021 
+L 427.863415 150.310673 
+L 432.740071 150.957378 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #0f4d92; stroke: #0f4d92; stroke-width: 1.55; stroke-linecap: round"/>
+   </g>
+   <g id="patch_18">
+    <path d="M 134.424 213.037632 
+C 136.55496 213.037632 138.598928 212.74322 140.105744 212.219237 
+C 141.612561 211.695254 142.4592 210.98448 142.4592 210.243456 
+C 142.4592 209.502432 141.612561 208.791658 140.105744 208.267675 
+C 138.598928 207.743692 136.55496 207.44928 134.424 207.44928 
+C 132.29304 207.44928 130.249072 207.743692 128.742256 208.267675 
+C 127.235439 208.791658 126.3888 209.502432 126.3888 210.243456 
+C 126.3888 210.98448 127.235439 211.695254 128.742256 212.219237 
+C 130.249072 212.74322 132.29304 213.037632 134.424 213.037632 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #00796b; stroke: #ffffff; stroke-width: 0.8; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_19">
+    <path d="M 221.472 213.037632 
+C 223.60296 213.037632 225.646928 212.74322 227.153744 212.219237 
+C 228.660561 211.695254 229.5072 210.98448 229.5072 210.243456 
+C 229.5072 209.502432 228.660561 208.791658 227.153744 208.267675 
+C 225.646928 207.743692 223.60296 207.44928 221.472 207.44928 
+C 219.34104 207.44928 217.297072 207.743692 215.790256 208.267675 
+C 214.283439 208.791658 213.4368 209.502432 213.4368 210.243456 
+C 213.4368 210.98448 214.283439 211.695254 215.790256 212.219237 
+C 217.297072 212.74322 219.34104 213.037632 221.472 213.037632 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #00796b; stroke: #ffffff; stroke-width: 0.8; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_20">
+    <path d="M 335.304 213.037632 
+C 337.43496 213.037632 339.478928 212.74322 340.985744 212.219237 
+C 342.492561 211.695254 343.3392 210.98448 343.3392 210.243456 
+C 343.3392 209.502432 342.492561 208.791658 340.985744 208.267675 
+C 339.478928 207.743692 337.43496 207.44928 335.304 207.44928 
+C 333.17304 207.44928 331.129072 207.743692 329.622256 208.267675 
+C 328.115439 208.791658 327.2688 209.502432 327.2688 210.243456 
+C 327.2688 210.98448 328.115439 211.695254 329.622256 212.219237 
+C 331.129072 212.74322 333.17304 213.037632 335.304 213.037632 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #00796b; stroke: #ffffff; stroke-width: 0.8; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_21">
+    <path d="M 455.832 213.037632 
+C 457.96296 213.037632 460.006928 212.74322 461.513744 212.219237 
+C 463.020561 211.695254 463.8672 210.98448 463.8672 210.243456 
+C 463.8672 209.502432 463.020561 208.791658 461.513744 208.267675 
+C 460.006928 207.743692 457.96296 207.44928 455.832 207.44928 
+C 453.70104 207.44928 451.657072 207.743692 450.150256 208.267675 
+C 448.643439 208.791658 447.7968 209.502432 447.7968 210.243456 
+C 447.7968 210.98448 448.643439 211.695254 450.150256 212.219237 
+C 451.657072 212.74322 453.70104 213.037632 455.832 213.037632 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #00796b; stroke: #ffffff; stroke-width: 0.8; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_22">
+    <path d="M 556.272 213.037632 
+C 558.40296 213.037632 560.446928 212.74322 561.953744 212.219237 
+C 563.460561 211.695254 564.3072 210.98448 564.3072 210.243456 
+C 564.3072 209.502432 563.460561 208.791658 561.953744 208.267675 
+C 560.446928 207.743692 558.40296 207.44928 556.272 207.44928 
+C 554.14104 207.44928 552.097072 207.743692 550.590256 208.267675 
+C 549.083439 208.791658 548.2368 209.502432 548.2368 210.243456 
+C 548.2368 210.98448 549.083439 211.695254 550.590256 212.219237 
+C 552.097072 212.74322 554.14104 213.037632 556.272 213.037632 
+z
+" clip-path="url(#p4f899a220d)" style="fill: #00796b; stroke: #ffffff; stroke-width: 0.8; stroke-linejoin: miter"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 100.944 210.243456 
+L 583.056 210.243456 
+" clip-path="url(#p4f899a220d)" style="fill: none; stroke-dasharray: 4.4,3.3; stroke-dashoffset: 0; stroke: #a9b7b3; stroke-width: 1.1"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 15px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1f2933" x="24.6096" y="23.49936" transform="rotate(-0 24.6096 23.49936)">c</text>
+   </g>
+   <g id="text_2">
+    <text style="font-weight: 700; font-size: 14px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1f2933" x="50.0544" y="27.432485" transform="rotate(-0 50.0544 27.432485)">临床解释与治理闭环</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 8.8px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #64748b" x="50.0544" y="38.77825" transform="rotate(-0 50.0544 38.77825)">模型概率只有进入解释、报告、审计和运维链路后，才形成可复核的临床价值。</text>
+   </g>
+   <g id="text_4">
+    <text style="font-weight: 700; font-size: 8.7px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="212.267624" y="96.337336" transform="rotate(-0 212.267624 96.337336)">上传</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="212.267624" y="104.036852" transform="rotate(-0 212.267624 104.036852)">DICOM / 图像</text>
+   </g>
+   <g id="text_6">
+    <text style="font-weight: 700; font-size: 8.7px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="390.356685" y="75.01346" transform="rotate(-0 390.356685 75.01346)">V2 模型</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="390.356685" y="82.657452" transform="rotate(-0 390.356685 82.657452)">三类概率</text>
+   </g>
+   <g id="text_8">
+    <text style="font-weight: 700; font-size: 8.7px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="498.390193" y="124.867589" transform="rotate(-0 498.390193 124.867589)">Grad-CAM</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="498.390193" y="132.511582" transform="rotate(-0 498.390193 132.511582)">关注区域</text>
+   </g>
+   <g id="text_10">
+    <text style="font-weight: 700; font-size: 8.7px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="390.356685" y="178.519941" transform="rotate(-0 390.356685 178.519941)">医生判断</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="390.356685" y="186.163933" transform="rotate(-0 390.356685 186.163933)">最终建议</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 8.7px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="212.267624" y="157.196064" transform="rotate(-0 212.267624 157.196064)">报告</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="212.267624" y="164.840057" transform="rotate(-0 212.267624 164.840057)">PDF + 历史</text>
+   </g>
+   <g id="text_14">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="342" y="123.920136" transform="rotate(-0 342 123.920136)">患者级结果</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8.2px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="342" y="135.474456" transform="rotate(-0 342 135.474456)">逐图预测聚合</text>
+   </g>
+   <g id="text_16">
+    <text style="font-weight: 700; font-size: 9.4px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="126.054" y="96.460269" transform="rotate(-0 126.054 96.460269)">审计留痕</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="126.054" y="104.616076" transform="rotate(-0 126.054 104.616076)">登录 / 建档 / 用户管理</text>
+   </g>
+   <g id="text_18">
+    <text style="font-weight: 700; font-size: 9.4px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="126.054" y="166.314669" transform="rotate(-0 126.054 166.314669)">报告闭环</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="126.054" y="174.390694" transform="rotate(-0 126.054 174.390694)">医生判断 + PDF 导出</text>
+   </g>
+   <g id="text_20">
+    <text style="font-weight: 700; font-size: 9.4px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="557.946" y="96.460269" transform="rotate(-0 557.946 96.460269)">热图解释</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="557.946" y="104.536294" transform="rotate(-0 557.946 104.536294)">原图 / Grad-CAM 对照</text>
+   </g>
+   <g id="text_22">
+    <text style="font-weight: 700; font-size: 9.4px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #1f2933" x="557.946" y="166.314669" transform="rotate(-0 557.946 166.314669)">检索与运维</text>
+   </g>
+   <g id="text_23">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="557.946" y="174.453226" transform="rotate(-0 557.946 174.453226)">历史筛选 + health / metrics</text>
+   </g>
+   <g id="text_24">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="134.424" y="222.892933" transform="rotate(-0 134.424 222.892933)">cases</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="221.472" y="222.875683" transform="rotate(-0 221.472 222.875683)">case_images</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="335.304" y="222.875683" transform="rotate(-0 335.304 222.875683)">per_image_predictions</text>
+   </g>
+   <g id="text_27">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="455.832" y="222.869214" transform="rotate(-0 455.832 222.869214)">predictions / judgments</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 6.9px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="556.272" y="222.875683" transform="rotate(-0 556.272 222.875683)">audit_logs</text>
+   </g>
+   <g id="text_29">
+    <text style="font-size: 8.2px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Arial Unicode MS', 'Heiti TC', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #64748b" x="342" y="235.670544" transform="rotate(-0 342 235.670544)">SQLite WAL + busy_timeout + foreign_keys；审计日志使用独立事务，业务回滚也保留操作轨迹。</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p4f899a220d">
+   <rect x="7.2" y="7.2" width="669.6" height="232.848"/>
+  </clipPath>
+ </defs>
+</svg>

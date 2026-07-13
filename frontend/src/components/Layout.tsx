@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/AuthContext'
 
 const navItems = [
   { to: '/', label: '单例推理', end: true },
-  { to: '/batch', label: '批量推理' },
+  { to: '/batch', label: '批量推理', end: false },
   { to: '/history', label: '历史记录' },
   { to: '/settings', label: '设置' },
 ]

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Loader2, Inbox, Clock, CheckCircle2, XCircle, Ban } from 'lucide-react'
 import { getBatchJobs } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
 import type { BatchJobStatus } from '@/lib/types'
+import BatchNav from '@/components/BatchNav'
+import WorkspaceContainer from '@/components/WorkspaceContainer'
 
 const statusConfig: Record<BatchJobStatus, { label: string; color: string; Icon: typeof CheckCircle2 }> = {
   queued: { label: '排队中', color: 'text-text-tertiary', Icon: Clock },
@@ -20,28 +22,24 @@ const tableClass =
   '[&_td]:px-3 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-border ' +
   '[&_tr:last-child_td]:border-b-0'
 
-export default function BatchHistory() {
-  const navigate = useNavigate()
+export default function BatchHistory({ mode = 'history' }: { mode?: 'running' | 'history' }) {
   const [page, setPage] = useState(1)
   const pageSize = 15
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['batch-jobs', page],
-    queryFn: () => getBatchJobs(page, pageSize),
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['batch-jobs', mode, page],
+    queryFn: () => getBatchJobs(page, pageSize, mode === 'running' ? 'running' : undefined),
   })
 
   const totalPages = data ? Math.ceil(data.total / pageSize) : 0
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <WorkspaceContainer>
+      <BatchNav />
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-text-primary text-base font-medium">批量推理历史</h1>
-        <button
-          onClick={() => navigate('/batch')}
-          className="rounded-md border border-border-secondary bg-bg-primary px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-tertiary transition-colors"
-        >
-          新建批量任务
-        </button>
+        <h1 className="text-text-primary text-base font-medium">
+          {mode === 'running' ? '运行中的批量任务' : '批量任务历史'}
+        </h1>
       </div>
 
       <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
@@ -54,15 +52,29 @@ export default function BatchHistory() {
               <th>图像数</th>
               <th>聚合策略</th>
               <th>提交时间</th>
-              <th>操作</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center">
+                <td colSpan={6} className="py-12 text-center">
                   <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-text-tertiary" />
                   <span className="text-text-secondary text-xs">加载中...</span>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} className="py-10 text-center">
+                  <div role="alert" className="text-xs text-danger-text mb-3">
+                    批量任务加载失败：{error.message}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="rounded-md border border-border-secondary bg-bg-primary px-3 py-1.5 text-xs text-text-primary hover:bg-bg-tertiary transition-colors"
+                  >
+                    重新加载批量任务
+                  </button>
                 </td>
               </tr>
             ) : data && data.items.length > 0 ? (
@@ -70,13 +82,14 @@ export default function BatchHistory() {
                 const cfg = statusConfig[job.status] ?? statusConfig.failed
                 const StatusIcon = cfg.Icon
                 return (
-                  <tr
-                    key={job.job_id}
-                    className="hover:bg-bg-secondary transition-colors cursor-pointer"
-                    onClick={() => navigate(`/batch/${job.job_id}`)}
-                  >
+                  <tr key={job.job_id} className="hover:bg-bg-secondary transition-colors">
                     <td className="font-mono text-[11px] tabular-nums text-text-primary">
-                      {job.job_id.slice(0, 12)}
+                      <Link
+                        to={`/batch/${job.job_id}`}
+                        className="font-medium text-accent hover:text-accent-hover transition-colors"
+                      >
+                        {job.job_id.slice(0, 12)}
+                      </Link>
                     </td>
                     <td>
                       <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${cfg.color}`}>
@@ -94,22 +107,16 @@ export default function BatchHistory() {
                     <td className="text-[11px] text-text-secondary tabular-nums">
                       {job.started_at ? formatDateTime(job.started_at) : '—'}
                     </td>
-                    <td>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/batch/${job.job_id}`) }}
-                        className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors"
-                      >
-                        查看
-                      </button>
-                    </td>
                   </tr>
                 )
               })
             ) : (
               <tr>
-                <td colSpan={7} className="py-12 text-center">
+                <td colSpan={6} className="py-12 text-center">
                   <Inbox className="w-6 h-6 mx-auto mb-2 text-text-tertiary" />
-                  <span className="text-text-secondary text-xs">暂无批量推理记录</span>
+                  <span className="text-text-secondary text-xs">
+                    {mode === 'running' ? '暂无运行中的批量任务' : '暂无批量任务记录'}
+                  </span>
                 </td>
               </tr>
             )}
@@ -124,6 +131,7 @@ export default function BatchHistory() {
           </div>
           <div className="flex items-center gap-1.5">
             <button
+              aria-label="上一页批量任务"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"
@@ -131,6 +139,7 @@ export default function BatchHistory() {
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="下一页批量任务"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"
@@ -140,6 +149,6 @@ export default function BatchHistory() {
           </div>
         </div>
       )}
-    </div>
+    </WorkspaceContainer>
   )
 }

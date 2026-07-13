@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0"/>
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">V2 模型以图像为主导融合医学文本上下文</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">EfficientNet-B3 与医学 BERT 的门控融合，让系统同时利用影像形态和检查描述。</text>
+  </g>
+
+  <g id="architecture-flow">
+    <rect x="64" y="178" width="250" height="136" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <use data-icon="tabler-outline/activity-heartbeat" x="92" y="204" width="34" height="34" fill="#00796B" stroke-width="2"/>
+    <text x="140" y="224" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">超声图像</text>
+    <text x="92" y="262" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">300 x 300</text>
+    <text x="92" y="290" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">RGB · ImageNet 归一化</text>
+
+    <rect x="64" y="374" width="250" height="136" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <use data-icon="tabler-outline/report-medical" x="92" y="400" width="34" height="34" fill="#2F7C95" stroke-width="2"/>
+    <text x="140" y="420" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">检查文本</text>
+    <text x="92" y="458" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">检查方式 + 检查所见</text>
+    <text x="92" y="486" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">empty → zero vector</text>
+
+    <line x1="314" y1="246" x2="410" y2="246" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+    <line x1="314" y1="442" x2="410" y2="442" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <rect x="424" y="178" width="250" height="136" rx="16" fill="#E6F3F0" stroke="#D8D6CC"/>
+    <text x="456" y="224" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">EfficientNet-B3</text>
+    <text x="456" y="262" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">1536-dim feature</text>
+    <text x="456" y="290" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">图像形态主输入</text>
+
+    <rect x="424" y="374" width="250" height="136" rx="16" fill="#E6F1FB" stroke="#D8D6CC"/>
+    <text x="456" y="420" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">医学 BERT</text>
+    <text x="456" y="458" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">768-dim CLS</text>
+    <text x="456" y="486" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">保留检查上下文</text>
+
+    <line x1="674" y1="246" x2="774" y2="332" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+    <line x1="674" y1="442" x2="774" y2="360" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <rect x="780" y="258" width="250" height="172" rx="18" fill="#FFFFFF" stroke="#00796B" stroke-width="2"/>
+    <use data-icon="tabler-outline/brain" x="812" y="288" width="38" height="38" fill="#00796B" stroke-width="2"/>
+    <text x="866" y="313" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">图像主导门控融合</text>
+    <text x="812" y="358" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">ImageDominantGatedFusion</text>
+    <text x="812" y="386" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">hidden = 256</text>
+    <text x="812" y="414" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">concat → 512</text>
+
+    <line x1="1030" y1="344" x2="1100" y2="344" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <rect x="1104" y="258" width="126" height="172" rx="18" fill="#FCEDE8" stroke="#D8D6CC"/>
+    <text x="1167" y="308" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">分类器</text>
+    <text x="1167" y="350" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">512→256→3</text>
+    <text x="1167" y="388" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#C15F3C">softmax</text>
+  </g>
+
+  <g id="output-classes">
+    <rect x="650" y="542" width="580" height="72" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <text x="682" y="586" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" font-weight="700" fill="#1F1E1D">输出类别</text>
+    <circle cx="806" cy="579" r="10" fill="#3B6D11"/>
+    <text x="824" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">正常</text>
+    <circle cx="918" cy="579" r="10" fill="#A32D2D"/>
+    <text x="936" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">子宫内膜癌</text>
+    <circle cx="1090" cy="579" r="10" fill="#854F0B"/>
+    <text x="1108" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">息肉</text>
+  </g>
+
+  <g id="training-facts">
+    <rect x="64" y="542" width="542" height="72" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <text x="96" y="573" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#00796B">10,587</text>
+    <text x="202" y="573" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">例患者</text>
+    <text x="292" y="573" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#00796B">196,255</text>
+    <text x="430" y="573" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">张图像</text>
+    <text x="96" y="602" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">5-fold CV · Fold 3 EMA · pat_acc = 0.8600</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: README and backend/app/services/inference.py</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">04 / 12</text>
+  </g>
+</svg>

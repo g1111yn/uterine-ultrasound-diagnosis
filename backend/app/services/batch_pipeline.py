@@ -1,19 +1,17 @@
-"""Patient-oriented batch inference pipeline (V1).
+"""Patient-oriented batch inference pipeline (V2 — serial per-patient).
 
 Workflow
 --------
 1. Client uploads a ZIP containing manifest.csv and one subdirectory per
    patient, each holding 1..N images.
 2. The service creates a BatchJob, plus one Case + N CaseImage rows per
-   patient, and enqueues every image as a priority-5 inference task.
-3. When the last image of a patient completes, a priority-5 aggregation
-   task fires and writes that patient's Prediction row; the BatchJob
-   counters are updated.
-4. Single-case (priority-0) tasks can still jump the queue.
-
-This file owns ZIP parsing, batch kick-off, and the per-batch aggregation
-callbacks. The queue + inference primitives come from
-app.services.inference_queue / app.services.aggregation.
+   patient, then kicks off a background thread that processes patients
+   **one at a time** (serial). Within each patient, images are inferred
+   sequentially via the priority queue.
+3. After each image completes, ``completed_images`` is incremented so the
+   frontend sees real-time progress. After all images for a patient
+   finish, aggregation runs inline and ``completed_patients`` increments.
+4. Single-case (priority-0) tasks can still jump the queue between images.
 """
 from __future__ import annotations
 
@@ -23,7 +21,7 @@ import os
 import shutil
 import threading
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -43,6 +41,7 @@ from app.utils.image import save_upload_with_preview
 
 
 BATCH_PRIORITY = 5
+BATCH_IMAGE_TIMEOUT_SECONDS = float(os.getenv("BATCH_IMAGE_TIMEOUT_SECONDS", "300"))
 MAX_UNCOMPRESSED_BYTES = int(os.getenv("BATCH_MAX_UNCOMPRESSED_BYTES", str(500 * 1024 * 1024)))  # 500 MB
 MAX_IMAGES_PER_PATIENT_BATCH = int(os.getenv("BATCH_MAX_IMAGES_PER_PATIENT", "30"))
 ALLOWED_EXTS = {"jpg", "jpeg", "png", "bmp", "tif", "tiff", "dcm"}
@@ -52,6 +51,107 @@ KNOWN_MANIFEST_COLUMNS = {"patient_no", "clinical_text", "check_project"}
 # user_id -> lock; ensures one in-flight batch submission per user.
 _user_locks: dict[str, threading.Lock] = {}
 _user_locks_guard = threading.Lock()
+
+
+def _batch_without_work_error(patient_work: list) -> tuple[str, str]:
+    if not patient_work:
+        return "NO_VALID_IMAGES", "批量任务中没有可处理的有效图像。"
+    return "", ""
+
+
+def _fail_batch_without_work(job: BatchJob, patient_work: list) -> bool:
+    code, message = _batch_without_work_error(patient_work)
+    if not code:
+        return False
+    job.status = "failed"
+    job.finished_at = datetime.now(timezone.utc)
+    job.error_message = message
+    return True
+
+
+def _completed_task_record(done_event, task_result: list, *, timeout: int):
+    if not done_event.wait(timeout=timeout):
+        return None
+    return task_result[0] if task_result else None
+
+
+def _transition_running_batch(db, job_id: str, status: str, *, error_message: str = "") -> bool:
+    updated = (
+        db.query(BatchJob)
+        .filter(BatchJob.job_id == job_id, BatchJob.status == "running")
+        .update(
+            {
+                BatchJob.status: status,
+                BatchJob.finished_at: datetime.now(timezone.utc),
+                BatchJob.error_message: error_message,
+            },
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    return bool(updated)
+
+
+def _fail_running_batch_on_timeout(
+    db,
+    job_id: str,
+    error_message: str,
+    *,
+    case_id: str | None = None,
+) -> bool:
+    updated = (
+        db.query(BatchJob)
+        .filter(BatchJob.job_id == job_id, BatchJob.status == "running")
+        .update(
+            {
+                BatchJob.status: "failed",
+                BatchJob.finished_at: datetime.now(timezone.utc),
+                BatchJob.error_message: error_message,
+                BatchJob.completed_images: BatchJob.completed_images + 1,
+                BatchJob.completed_patients: BatchJob.completed_patients + 1,
+                BatchJob.failed_patients: BatchJob.failed_patients + 1,
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated and case_id:
+        (
+            db.query(Case)
+            .filter(Case.case_id == case_id)
+            .update({Case.batch_error: error_message}, synchronize_session=False)
+        )
+    db.commit()
+    return bool(updated)
+
+
+def _begin_immediate_batch(db) -> None:
+    db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+
+
+def _cancel_inference_task(task_id: str) -> bool:
+    return queue.cancel(task_id)
+
+
+class _TaskResultGate:
+    def __init__(self):
+        self._condition = threading.Condition()
+        self._record: Optional[TaskRecord] = None
+        self._accepting = True
+
+    def accept(self, record: TaskRecord) -> bool:
+        with self._condition:
+            if not self._accepting:
+                return False
+            self._record = record
+            self._condition.notify_all()
+            return True
+
+    def wait_and_close(self, timeout: float) -> Optional[TaskRecord]:
+        with self._condition:
+            if self._record is None:
+                self._condition.wait_for(lambda: self._record is not None, timeout=timeout)
+            self._accepting = False
+            return self._record
 
 
 class BatchError(Exception):
@@ -335,12 +435,13 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                 total_images=total_images,
                 status="running",
                 aggregation_strategy=strategy.name,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
             )
             db.add(job)
             db.flush()
 
-            # Persist Case + CaseImage for each patient; enqueue per-image tasks.
+            # Persist Case + CaseImage for each patient (data only, no inference yet).
+            patient_work: list[tuple[str, str, str, list[CaseImage]]] = []
             for pno, check_project, clinical_text, imgs in active_patients:
                 case_id = generate_case_id()
                 case = Case(
@@ -354,12 +455,17 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                 db.add(case)
                 db.flush()
 
-                image_rows: list[CaseImage] = []
+                image_rows: list[dict] = []
+                persistence_errors: list[str] = []
                 for seq, src in enumerate(imgs, start=1):
-                    content = src.read_bytes()
-                    rel_path, fmt, preview_path = save_upload_with_preview(content, src.name)
+                    try:
+                        content = src.read_bytes()
+                        rel_path, fmt, preview_path = save_upload_with_preview(content, src.name)
+                    except Exception as exc:
+                        persistence_errors.append(f"{src.name}：{str(exc) or '图像保存失败'}")
+                        continue
                     if fmt == "dcm" and not preview_path:
-                        # Skip undecodable DICOM for this patient; count as one failed image.
+                        persistence_errors.append(f"{src.name}：DICOM 图像无法生成可用预览")
                         continue
                     ci = CaseImage(
                         case_id=case_id,
@@ -372,31 +478,39 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
                     )
                     db.add(ci)
                     db.flush()
-                    image_rows.append(ci)
+                    # Capture plain values now — ORM objects become detached
+                    # once this session closes and can't be used in the worker.
+                    image_rows.append({"id": ci.id, "image_path": ci.image_path})
 
                 if not image_rows:
-                    # No usable images for this patient — mark the job's failure counter.
+                    case.batch_error = "；".join(persistence_errors) or "未找到可处理的有效图像。"
                     job.completed_patients += 1
                     job.failed_patients += 1
                     continue
 
-                _enqueue_patient_inference(
-                    job_id=job_id,
-                    case_id=case_id,
-                    check_project=check_project,
-                    clinical_text=clinical_text,
-                    images=[(ci, ci_path_bytes(ci)) for ci in image_rows],
-                    strategy_name=strategy.name,
-                )
+                patient_work.append((case_id, check_project, clinical_text, image_rows))
 
-            db.commit()
-            return {
+            job.total_images = sum(
+                len(image_rows)
+                for _, _, _, image_rows in patient_work
+            )
+
+            summary = {
                 "job_id": job_id,
                 "total_patients": job.total_patients,
                 "total_images": job.total_images,
                 "status_url": f"/api/batch/{job_id}",
                 "warnings": warnings,
             }
+            if _fail_batch_without_work(job, patient_work):
+                db.commit()
+                return summary
+
+            db.commit()
+
+            # Kick off serial background worker for this batch.
+            _start_serial_batch_worker(job_id, patient_work, strategy.name)
+            return summary
         except BatchError:
             db.rollback()
             raise
@@ -404,148 +518,172 @@ def submit_batch(archive: bytes, *, user_id: str, aggregation_strategy: Optional
             db.close()
 
 
-def ci_path_bytes(ci: CaseImage) -> bytes:
-    p = DATA_DIR / ci.image_path
-    return p.read_bytes()
-
-
-def _enqueue_patient_inference(
-    *,
+def _start_serial_batch_worker(
     job_id: str,
-    case_id: str,
-    check_project: str,
-    clinical_text: str,
-    images: list[tuple[CaseImage, bytes]],
+    patient_work: list[tuple[str, str, str, list[dict]]],
     strategy_name: str,
-) -> None:
-    """Submit per-image tasks + aggregation for one patient inside a batch."""
-    child_ids = [generate_task_id("bimg") for _ in images]
-    agg_id = generate_task_id("bagg")
+) -> threading.Thread:
+    """Spawn a daemon thread that processes patients one-by-one.
 
-    queue.submit_aggregation(
-        agg_id,
-        priority=BATCH_PRIORITY,
-        case_id=case_id,
-        child_task_ids=child_ids,
-        on_complete=_make_batch_aggregation_cb(job_id, case_id, child_ids, strategy_name),
-    )
+    For each patient:
+      1. Infer each image sequentially via the queue (priority=BATCH_PRIORITY).
+      2. After all images done, aggregate inline and write Prediction.
+      3. Update completed_images / completed_patients after each step.
 
-    child_cb = _make_batch_child_cb(agg_id, child_ids)
-    for tid, (_ci, content) in zip(child_ids, images):
-        data = content
+    This gives the frontend smooth, per-image progress updates.
+    """
+    def _worker():
+        for case_id, check_project, clinical_text, image_rows in patient_work:
+            db = SessionLocal()
+            try:
+                job = db.query(BatchJob).filter(BatchJob.job_id == job_id).first()
+                if job is None or job.status == "cancelled":
+                    return
 
-        def getter(_data=data) -> bytes:
-            return _data
+                # Update current_patient for frontend display.
+                case = db.query(Case).filter(Case.case_id == case_id).first()
+                patient_no = case.patient_no if case else ""
+                job.current_patient = patient_no
+                db.commit()
 
-        queue.submit_per_image(
-            tid,
-            priority=BATCH_PRIORITY,
-            image_bytes_getter=getter,
-            check_project=check_project,
-            check_seen=clinical_text,
-            on_complete=child_cb,
-        )
+                # Infer each image sequentially.
+                per_results: list[PerImageResult] = []
+                inference_errors: list[str] = []
+                first_model_version: Optional[str] = None
 
+                for ci in image_rows:
+                    # Check cancellation before each image.
+                    db.refresh(job)
+                    if job.status == "cancelled":
+                        return
 
-def _make_batch_child_cb(agg_id: str, sibling_ids: list[str]):
-    def _cb(_rec: TaskRecord):
-        # Wait until every sibling is terminal.
-        for tid in sibling_ids:
-            s = queue.get(tid)
-            if s is None or s.status not in ("done", "failed"):
+                    img_path = DATA_DIR / ci["image_path"]
+                    img_bytes = img_path.read_bytes()
+                    task_id = generate_task_id("bimg")
+                    result_gate = _TaskResultGate()
+
+                    def _on_done(
+                        rec: TaskRecord,
+                        _gate=result_gate,
+                    ):
+                        _gate.accept(rec)
+
+                    queue.submit_per_image(
+                        task_id,
+                        priority=BATCH_PRIORITY,
+                        image_bytes_getter=lambda _b=img_bytes: _b,
+                        check_project=check_project,
+                        check_seen=clinical_text,
+                        on_complete=_on_done,
+                    )
+
+                    # Block until this single image is done.
+                    task_record = result_gate.wait_and_close(
+                        timeout=BATCH_IMAGE_TIMEOUT_SECONDS,
+                    )
+
+                    # Cancellation may have happened while inference was running.
+                    db.refresh(job)
+                    if job.status == "cancelled":
+                        return
+
+                    if task_record is None:
+                        _cancel_inference_task(task_id)
+                        if not _fail_running_batch_on_timeout(
+                            db,
+                            job_id,
+                            "图像推理超时，批量任务已停止，请重新提交。",
+                            case_id=case_id,
+                        ):
+                            return
+                        return
+
+                    # Update completed_images immediately.
+                    job.completed_images += 1
+                    db.commit()
+
+                    if task_record and task_record.status == "done" and task_record.result:
+                        res = task_record.result
+                        first_model_version = first_model_version or res.model_version
+                        db.add(PerImagePrediction(
+                            image_id=ci["id"],
+                            prob_normal=res.prob_normal,
+                            prob_cancer=res.prob_cancer,
+                            prob_polyp=res.prob_polyp,
+                            predicted_class=res.predicted_class,
+                            confidence=res.confidence,
+                            gradcam_path=res.gradcam_path or "",
+                            inference_ms=res.inference_ms,
+                            model_version=res.model_version,
+                        ))
+                        per_results.append(PerImageResult(
+                            prob_normal=res.prob_normal,
+                            prob_cancer=res.prob_cancer,
+                            prob_polyp=res.prob_polyp,
+                            predicted_class=res.predicted_class,
+                            confidence=res.confidence,
+                        ))
+                        db.commit()
+                    elif task_record and task_record.error:
+                        inference_errors.append(task_record.error)
+
+                # Serialize the final status check with aggregation writes so a
+                # concurrent cancellation cannot commit between them.
+                _begin_immediate_batch(db)
+                job = db.query(BatchJob).filter(BatchJob.job_id == job_id).first()
+                if job is None or job.status == "cancelled":
+                    db.rollback()
+                    return
+                job.completed_patients += 1
+                if per_results:
+                    strategy = get_strategy(strategy_name)
+                    agg = strategy.aggregate(per_results)
+                    db.add(Prediction(
+                        case_id=case_id,
+                        aggregation_strategy=agg.strategy,
+                        aggregation_threshold=agg.threshold,
+                        prob_normal=agg.prob_normal,
+                        prob_cancer=agg.prob_cancer,
+                        prob_polyp=agg.prob_polyp,
+                        predicted_class=agg.predicted_class,
+                        confidence=agg.confidence,
+                        image_count=agg.image_count,
+                        model_version=first_model_version or "",
+                    ))
+                    job.succeeded_patients += 1
+                else:
+                    if case:
+                        case.batch_error = "；".join(dict.fromkeys(inference_errors)) or "图像推理失败，未生成诊断结果。"
+                    job.failed_patients += 1
+
+                if job.completed_patients >= job.total_patients:
+                    job.status = "completed"
+                    job.finished_at = datetime.now(timezone.utc)
+                db.commit()
+            except Exception:
+                db.rollback()
+                import traceback
+                print(f"[batch-serial-{job_id}] worker error:\n{traceback.format_exc()}")
+                # Mark job as failed on unexpected error.
+                try:
+                    job = db.query(BatchJob).filter(BatchJob.job_id == job_id).first()
+                    if job and job.status not in ("completed", "cancelled"):
+                        case = db.query(Case).filter(Case.case_id == case_id).first()
+                        if case:
+                            case.batch_error = "患者处理失败，请重新提交。"
+                        job.status = "failed"
+                        job.finished_at = datetime.now(timezone.utc)
+                        job.error_message = "批量任务处理失败，请重新提交。"
+                        db.commit()
+                except Exception:
+                    pass
                 return
-        queue.enqueue_ready_aggregation(agg_id)
-    return _cb
+            finally:
+                db.close()
 
-
-def _make_batch_aggregation_cb(job_id: str, case_id: str, child_ids: list[str], strategy_name: str):
-    def _cb(agg_rec: TaskRecord):
-        db = SessionLocal()
-        try:
-            job = db.query(BatchJob).filter(BatchJob.job_id == job_id).first()
-            if job is None:
-                return
-            if job.status == "cancelled":
-                agg_rec.status = "failed"
-                agg_rec.error = "Batch cancelled."
-                return
-
-            images = (
-                db.query(CaseImage)
-                .filter(CaseImage.case_id == case_id)
-                .order_by(CaseImage.sequence)
-                .all()
-            )
-            per_results: list[PerImageResult] = []
-            first_model_version: Optional[str] = None
-            for img in images:
-                idx = img.sequence - 1
-                if idx < 0 or idx >= len(child_ids):
-                    continue
-                child = queue.get(child_ids[idx])
-                job.completed_images += 1
-                if child is None or child.status != "done" or child.result is None:
-                    continue
-                res = child.result
-                first_model_version = first_model_version or res.model_version
-                db.add(PerImagePrediction(
-                    image_id=img.id,
-                    prob_normal=res.prob_normal,
-                    prob_cancer=res.prob_cancer,
-                    prob_polyp=res.prob_polyp,
-                    predicted_class=res.predicted_class,
-                    confidence=res.confidence,
-                    gradcam_path=res.gradcam_path or "",
-                    inference_ms=res.inference_ms,
-                    model_version=res.model_version,
-                ))
-                per_results.append(PerImageResult(
-                    prob_normal=res.prob_normal,
-                    prob_cancer=res.prob_cancer,
-                    prob_polyp=res.prob_polyp,
-                    predicted_class=res.predicted_class,
-                    confidence=res.confidence,
-                ))
-
-            job.completed_patients += 1
-            case = db.query(Case).filter(Case.case_id == case_id).first()
-            patient_no = case.patient_no if case else ""
-            if per_results:
-                strategy = get_strategy(strategy_name)
-                agg = strategy.aggregate(per_results)
-                db.add(Prediction(
-                    case_id=case_id,
-                    aggregation_strategy=agg.strategy,
-                    aggregation_threshold=agg.threshold,
-                    prob_normal=agg.prob_normal,
-                    prob_cancer=agg.prob_cancer,
-                    prob_polyp=agg.prob_polyp,
-                    predicted_class=agg.predicted_class,
-                    confidence=agg.confidence,
-                    image_count=agg.image_count,
-                    model_version=first_model_version or "",
-                ))
-                job.succeeded_patients += 1
-            else:
-                job.failed_patients += 1
-
-            job.current_patient = patient_no
-            # Completion bookkeeping.
-            if job.completed_patients >= job.total_patients:
-                job.status = "completed"
-                job.finished_at = datetime.utcnow()
-
-            db.commit()
-            agg_rec.case_id = case_id
-            agg_rec.result = {"case_id": case_id, "patient_no": patient_no}
-        except Exception as exc:
-            db.rollback()
-            agg_rec.status = "failed"
-            agg_rec.error = f"{type(exc).__name__}: {exc}"
-        finally:
-            db.close()
-
-    return _cb
+    t = threading.Thread(target=_worker, name=f"batch-serial-{job_id}", daemon=True)
+    t.start()
+    return t
 
 
 # -- Cancellation + Resume ---------------------------------------------------
@@ -561,8 +699,22 @@ def cancel_batch(job_id: str, *, user_id: str) -> bool:
             raise BatchError("FORBIDDEN", "无权取消该批量任务。", 403)
         if job.status not in ("pending", "running"):
             return True
-        job.status = "cancelled"
-        job.finished_at = datetime.utcnow()
+        db.rollback()
+        (
+            db.query(BatchJob)
+            .filter(
+                BatchJob.job_id == job_id,
+                BatchJob.user_id == user_id,
+                BatchJob.status.in_(("pending", "running")),
+            )
+            .update(
+                {
+                    BatchJob.status: "cancelled",
+                    BatchJob.finished_at: datetime.now(timezone.utc),
+                },
+                synchronize_session=False,
+            )
+        )
         db.commit()
         return True
     finally:
@@ -585,7 +737,7 @@ def resume_incomplete_batches() -> int:
         )
         for job in stuck:
             job.status = "failed"
-            job.finished_at = datetime.utcnow()
+            job.finished_at = datetime.now(timezone.utc)
             job.error_message = "服务重启，批量任务已中断，请重新提交。"
             fixed += 1
         db.commit()

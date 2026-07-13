@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B" />
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">生产部署关注模型资源、推理时延和备份恢复</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">当前方案能在常规 CPU 服务器上运行，但需要明确模型权重、内存、备份和 HTTPS 配置。</text>
+  </g>
+
+  <g id="kpi-cards">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M72,158 H310 A16,16 0 0 1 326,174 V322 A16,16 0 0 1 310,338 H72 A16,16 0 0 1 56,322 V174 A16,16 0 0 1 72,158 Z" />
+    
+  <g transform="translate(84.0, 186.0) scale(1.5)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12" />
+    <path d="M9 9h6v6h-6l0 -6" />
+    <path d="M3 10h2" />
+    <path d="M3 14h2" />
+    <path d="M10 3v2" />
+    <path d="M14 3v2" />
+    <path d="M21 10h-2" />
+    <path d="M21 14h-2" />
+    <path d="M14 21v-2" />
+    <path d="M10 21v-2" />
+  </g>
+    <text x="84" y="250" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">推荐 CPU</text>
+    <text x="84" y="294" font-family="Georgia, Microsoft YaHei, serif" font-size="40" font-weight="700" fill="#1F1E1D">8 核+</text>
+    <text x="84" y="320" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#8B8881">最低 4 核可运行</text>
+
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M372,158 H610 A16,16 0 0 1 626,174 V322 A16,16 0 0 1 610,338 H372 A16,16 0 0 1 356,322 V174 A16,16 0 0 1 372,158 Z" />
+    
+  <g transform="translate(384.0, 186.0) scale(1.5)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" />
+    <path d="M4 6v6a8 3 0 0 0 16 0v-6" />
+    <path d="M4 12v6a8 3 0 0 0 16 0v-6" />
+  </g>
+    <text x="384" y="250" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">推荐内存</text>
+    <text x="384" y="294" font-family="Georgia, Microsoft YaHei, serif" font-size="40" font-weight="700" fill="#1F1E1D">16 GB</text>
+    <text x="384" y="320" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#8B8881">模型加载约 2 GB</text>
+
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M672,158 H910 A16,16 0 0 1 926,174 V322 A16,16 0 0 1 910,338 H672 A16,16 0 0 1 656,322 V174 A16,16 0 0 1 672,158 Z" />
+    
+  <g transform="translate(684.0, 186.0) scale(1.5)" fill="none" stroke="#C15F3C" stroke-width="2">
+    <path d="M3 12h4.5l1.5 -6l4 12l2 -9l1.5 3h4.5" />
+  </g>
+    <text x="684" y="250" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">CPU 推理</text>
+    <text x="684" y="294" font-family="Georgia, Microsoft YaHei, serif" font-size="40" font-weight="700" fill="#1F1E1D">1.2 秒/图</text>
+    <text x="684" y="320" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#8B8881">前端按图像数量估时</text>
+
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M972,158 H1208 A16,16 0 0 1 1224,174 V322 A16,16 0 0 1 1208,338 H972 A16,16 0 0 1 956,322 V174 A16,16 0 0 1 972,158 Z" />
+    
+  <g transform="translate(984.0, 186.0) scale(1.5)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878" />
+  </g>
+    <text x="984" y="250" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">推荐磁盘</text>
+    <text x="984" y="294" font-family="Georgia, Microsoft YaHei, serif" font-size="40" font-weight="700" fill="#1F1E1D">200 GB</text>
+    <text x="984" y="320" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#8B8881">影像与报告长期增长</text>
+  </g>
+
+  <g id="deployment-flow">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M74,392 H762 A18,18 0 0 1 780,410 V578 A18,18 0 0 1 762,596 H74 A18,18 0 0 1 56,578 V410 A18,18 0 0 1 74,392 Z" />
+    <text x="88" y="438" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">部署路径</text>
+    <path fill="#E6F3F0" d="M106,478 H210 A14,14 0 0 1 224,492 V518 A14,14 0 0 1 210,532 H106 A14,14 0 0 1 92,518 V492 A14,14 0 0 1 106,478 Z" />
+    <text x="158" y="512" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="15" fill="#00796B">venv</text>
+    <line x1="224" y1="505" x2="274" y2="505" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+    <path fill="#E6F1FB" d="M298,478 H402 A14,14 0 0 1 416,492 V518 A14,14 0 0 1 402,532 H298 A14,14 0 0 1 284,518 V492 A14,14 0 0 1 298,478 Z" />
+    <text x="350" y="512" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="15" fill="#2F7C95">weights</text>
+    <line x1="416" y1="505" x2="466" y2="505" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+    <path fill="#FCEDE8" d="M490,478 H594 A14,14 0 0 1 608,492 V518 A14,14 0 0 1 594,532 H490 A14,14 0 0 1 476,518 V492 A14,14 0 0 1 490,478 Z" />
+    <text x="542" y="512" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="15" fill="#C15F3C">systemd</text>
+    <line x1="608" y1="505" x2="658" y2="505" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+    <path fill="#EFEDE5" d="M682,478 H730 A14,14 0 0 1 744,492 V518 A14,14 0 0 1 730,532 H682 A14,14 0 0 1 668,518 V492 A14,14 0 0 1 682,478 Z" />
+    <text x="706" y="512" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">Nginx</text>
+    <text x="88" y="566" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">Linux 推荐 systemd；Windows 可使用 NSSM。生产环境建议启用 HTTPS、COOKIE_SECURE 和 HSTS。</text>
+  </g>
+
+  <g id="backup-panel">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M838,392 H1206 A18,18 0 0 1 1224,410 V578 A18,18 0 0 1 1206,596 H838 A18,18 0 0 1 820,578 V410 A18,18 0 0 1 838,392 Z" />
+    
+  <g transform="translate(852.0, 424.0) scale(1.4166666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M9.615 20h-2.615a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8" />
+    <path d="M14 19l2 2l4 -4" />
+    <path d="M9 8h4" />
+    <path d="M9 12h2" />
+  </g>
+    <text x="900" y="448" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">备份与恢复</text>
+    <text x="852" y="496" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" fill="#1F1E1D">SQLite 热备 + uploads 增量 rsync</text>
+    <text x="852" y="530" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">每天凌晨 3 点，保留 30 天</text>
+    <text x="852" y="562" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">建议每月做一次恢复演练</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: README and docs/deployment.md</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">09 / 12</text>
+  </g>
+</svg>

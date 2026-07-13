@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Server, Cpu, Clock, Loader2, SlidersHorizontal } from 'lucide-react'
+import { Server, Cpu, Clock, Loader2 } from 'lucide-react'
 import { getHealth } from '@/api/client'
-import { useAppStore } from '@/lib/store'
 
 export default function Settings() {
-  const { confidenceThreshold, setConfidenceThreshold } = useAppStore()
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['health'],
     queryFn: getHealth,
@@ -86,34 +84,6 @@ export default function Settings() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="rounded-lg border border-border bg-bg-primary p-5 mt-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-text-tertiary" />
-          <h2 className="text-xs font-medium text-text-primary">推理参数</h2>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs">
-            <span className="text-text-secondary">置信度阈值</span>
-            <span className="font-medium tabular-nums text-text-primary">
-              {(confidenceThreshold * 100).toFixed(0)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={confidenceThreshold}
-            onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
-            className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-bg-tertiary"
-            style={{ accentColor: 'var(--color-info-text)' }}
-          />
-          <p className="text-[11px] text-text-tertiary">
-            低于此阈值的预测结果将标记为"低置信度"
-          </p>
-        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-bg-primary p-5 mt-4 space-y-2">

@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0"/>
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">前后端、任务队列、模型服务共同支撑临床闭环</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">工程架构围绕可部署、可追踪、可恢复的医院场景设计。</text>
+  </g>
+
+  <g id="architecture">
+    <rect x="56" y="152" width="1168" height="438" rx="20" fill="#FFFFFF" stroke="#D8D6CC"/>
+
+    <g id="frontend-layer">
+      <rect x="94" y="210" width="180" height="296" rx="16" fill="#E6F3F0" stroke="#D8D6CC"/>
+      <text x="184" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">Frontend</text>
+      <text x="184" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">React 19</text>
+      <text x="184" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">TypeScript</text>
+      <text x="184" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">Vite</text>
+      <use data-icon="tabler-outline/presentation" x="154" y="382" width="60" height="60" fill="#00796B" stroke-width="2"/>
+      <text x="184" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">单例 / 批量 / 历史 / 管理</text>
+    </g>
+
+    <line x1="274" y1="358" x2="338" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <g id="api-layer">
+      <rect x="348" y="210" width="190" height="296" rx="16" fill="#E6F1FB" stroke="#D8D6CC"/>
+      <text x="443" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">API</text>
+      <text x="443" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">FastAPI</text>
+      <text x="443" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">SQLAlchemy</text>
+      <text x="443" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">Auth / Audit</text>
+      <use data-icon="tabler-outline/server" x="413" y="382" width="60" height="60" fill="#2F7C95" stroke-width="2"/>
+      <text x="443" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">/api/* 路由与静态服务</text>
+    </g>
+
+    <line x1="538" y1="358" x2="604" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <g id="queue-layer">
+      <rect x="614" y="210" width="190" height="296" rx="16" fill="#FCEDE8" stroke="#D8D6CC"/>
+      <text x="709" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">Queue</text>
+      <text x="709" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">priority heap</text>
+      <text x="709" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">single worker</text>
+      <text x="709" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">task status</text>
+      <use data-icon="tabler-outline/route" x="679" y="382" width="60" height="60" fill="#C15F3C" stroke-width="2"/>
+      <text x="709" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">单例优先，批量后台</text>
+    </g>
+
+    <line x1="804" y1="358" x2="870" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <g id="model-layer">
+      <rect x="880" y="210" width="190" height="296" rx="16" fill="#FFFFFF" stroke="#00796B" stroke-width="2"/>
+      <text x="975" y="252" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="25" font-weight="700" fill="#1F1E1D">AI Model</text>
+      <text x="975" y="284" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">PyTorch CPU</text>
+      <text x="975" y="308" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">EfficientNet-B3</text>
+      <text x="975" y="332" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">Medical BERT</text>
+      <use data-icon="tabler-outline/brain" x="945" y="382" width="60" height="60" fill="#00796B" stroke-width="2"/>
+      <text x="975" y="472" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#1F1E1D">三分类 + Grad-CAM</text>
+    </g>
+
+    <line x1="1070" y1="358" x2="1110" y2="358" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <g id="storage-layer">
+      <rect x="1116" y="210" width="76" height="296" rx="16" fill="#EFEDE5" stroke="#D8D6CC"/>
+      <use data-icon="tabler-outline/database" x="1138" y="250" width="32" height="32" fill="#6B6864" stroke-width="2"/>
+      <text x="1154" y="318" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">SQLite</text>
+      <text x="1154" y="342" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">WAL</text>
+      <text x="1154" y="390" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">uploads</text>
+      <text x="1154" y="414" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">gradcam</text>
+    </g>
+  </g>
+
+  <g id="ops-band">
+    <rect x="134" y="542" width="1012" height="54" rx="16" fill="#F7F6F0" stroke="#D8D6CC"/>
+    <text x="168" y="575" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">结构化日志</text>
+    <text x="320" y="575" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">request_id</text>
+    <text x="476" y="575" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">健康检查</text>
+    <text x="630" y="575" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">/api/health</text>
+    <text x="810" y="575" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">指标接口</text>
+    <text x="956" y="575" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">/api/metrics</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: backend and frontend project structure</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">08 / 12</text>
+  </g>
+</svg>

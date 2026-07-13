@@ -1,0 +1,7 @@
+No,Filename,Width,Height,AspectRatio,PixelAspectRatio,RatioSource,UsageCount,DisplayRatioVariants,AssetKind,SvgRenderable,PptxNativeSupported,SizeKB,Category,ImageArea_SxS,TextArea_SxS
+1,fig_clinical_loop.png,2640,924,2.86,2.86,pixel,1,,bitmap,True,True,174.9,Ultra-wide,1160x406,1160x174
+2,fig_clinical_loop.tiff,7200,2520,2.86,2.86,pixel,1,,bitmap,True,True,70875.2,Ultra-wide,1160x406,1160x174
+3,fig_inference_workflow.png,2640,924,2.86,2.86,pixel,1,,bitmap,True,True,156.3,Ultra-wide,1160x406,1160x174
+4,fig_inference_workflow.tiff,7200,2520,2.86,2.86,pixel,1,,bitmap,True,True,70875.2,Ultra-wide,1160x406,1160x174
+5,fig_model_fusion.png,2640,924,2.86,2.86,pixel,1,,bitmap,True,True,181.7,Ultra-wide,1160x406,1160x174
+6,fig_model_fusion.tiff,7200,2520,2.86,2.86,pixel,1,,bitmap,True,True,70875.2,Ultra-wide,1160x406,1160x174

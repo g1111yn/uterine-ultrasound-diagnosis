@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0"/>
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">批量任务可以跑在后台，单例任务仍然优先响应</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">优先级队列把临床交互和后台处理解耦，避免批量任务占满推理资源。</text>
+  </g>
+
+  <g id="batch-flow">
+    <rect x="56" y="148" width="666" height="466" rx="18" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <text x="88" y="194" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">批量流水线</text>
+
+    <g id="batch-step-1">
+      <rect x="98" y="236" width="206" height="100" rx="16" fill="#E6F3F0" stroke="#D8D6CC"/>
+      <use data-icon="tabler-outline/file-report" x="122" y="262" width="34" height="34" fill="#00796B" stroke-width="2"/>
+      <text x="172" y="283" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">ZIP 上传</text>
+      <text x="122" y="314" font-family="Consolas, Courier New, monospace" font-size="13" fill="#6B6864">manifest.csv</text>
+    </g>
+
+    <line x1="304" y1="286" x2="382" y2="286" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <g id="batch-step-2">
+      <rect x="392" y="236" width="206" height="100" rx="16" fill="#E6F1FB" stroke="#D8D6CC"/>
+      <use data-icon="tabler-outline/users" x="416" y="262" width="34" height="34" fill="#2F7C95" stroke-width="2"/>
+      <text x="466" y="283" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">患者拆分</text>
+      <text x="416" y="314" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#6B6864">按 patient_no 子目录展开</text>
+    </g>
+
+    <line x1="495" y1="336" x2="495" y2="394" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <g id="batch-step-3">
+      <rect x="392" y="404" width="206" height="100" rx="16" fill="#FCEDE8" stroke="#D8D6CC"/>
+      <use data-icon="tabler-outline/brain" x="416" y="430" width="34" height="34" fill="#C15F3C" stroke-width="2"/>
+      <text x="466" y="451" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">逐图推理</text>
+      <text x="416" y="482" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#6B6864">每张图进入 per_image 任务</text>
+    </g>
+
+    <line x1="382" y1="454" x2="304" y2="454" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+
+    <g id="batch-step-4">
+      <rect x="98" y="404" width="206" height="100" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+      <use data-icon="tabler-outline/chart-infographic" x="122" y="430" width="34" height="34" fill="#00796B" stroke-width="2"/>
+      <text x="172" y="451" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="20" font-weight="700" fill="#1F1E1D">分类汇总</text>
+      <text x="122" y="482" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="13" fill="#6B6864">患者列表 + 逐图详情</text>
+    </g>
+  </g>
+
+  <g id="priority-queue">
+    <rect x="764" y="148" width="460" height="466" rx="18" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <text x="796" y="194" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#1F1E1D">推理优先级队列</text>
+    <text x="796" y="224" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">单个后台 worker 串行调用模型，避免模型并发不安全。</text>
+
+    <g id="queue-lanes">
+      <rect x="802" y="268" width="384" height="84" rx="16" fill="#E6F3F0" stroke="#00796B" stroke-width="2"/>
+      <use data-icon="tabler-outline/medical-cross" x="830" y="292" width="34" height="34" fill="#00796B" stroke-width="2"/>
+      <text x="882" y="304" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1E1D">单例任务</text>
+      <text x="882" y="331" font-family="Consolas, Courier New, monospace" font-size="15" fill="#00796B">priority = 0</text>
+      <text x="1142" y="319" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#00796B">优先执行</text>
+
+      <rect x="802" y="382" width="384" height="84" rx="16" fill="#EFEDE5" stroke="#D8D6CC"/>
+      <use data-icon="tabler-outline/users" x="830" y="406" width="34" height="34" fill="#6B6864" stroke-width="2"/>
+      <text x="882" y="418" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1E1D">批量任务</text>
+      <text x="882" y="445" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">priority = 5</text>
+      <text x="1142" y="433" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="14" fill="#6B6864">后台排队</text>
+
+      <line x1="994" y1="352" x2="994" y2="372" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+    </g>
+
+    <g id="queue-status">
+      <rect x="802" y="512" width="384" height="62" rx="16" fill="#FCEDE8" stroke="#D8D6CC"/>
+      <text x="828" y="548" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1E1D">前端状态反馈</text>
+      <text x="980" y="548" font-family="Consolas, Courier New, monospace" font-size="14" fill="#C15F3C">queued / running / done</text>
+    </g>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: backend/app/services/inference_queue.py and batch pipeline design</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">06 / 12</text>
+  </g>
+</svg>

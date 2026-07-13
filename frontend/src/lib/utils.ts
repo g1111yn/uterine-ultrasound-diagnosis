@@ -5,12 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const CLASS_LABELS_ZH: Record<string, string> = {
-  normal: '子宫正常大',
-  endometrial_cancer: '子宫内膜癌',
-  polyp: '息肉',
-}
-
 export function formatConfidence(value: number): string {
   return `${(value * 100).toFixed(1)}%`
 }

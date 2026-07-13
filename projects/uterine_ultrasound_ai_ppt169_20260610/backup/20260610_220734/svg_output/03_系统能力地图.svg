@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#F7F6F0"/>
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">一个系统覆盖“上传、推理、解释、报告、运维”闭环</text>
+    <rect x="56" y="94" width="720" height="2" fill="#00796B"/>
+    <text x="56" y="126" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">项目价值来自模型能力与临床工作流的结合，而不是单一分类器。</text>
+  </g>
+
+  <g id="center-loop">
+    <circle cx="640" cy="378" r="138" fill="#FFFFFF" stroke="#D8D6CC" stroke-width="1.5"/>
+    <circle cx="640" cy="378" r="102" fill="#E6F3F0" stroke="#00796B" stroke-width="2"/>
+    <use data-icon="tabler-outline/route" x="610" y="307" width="60" height="60" fill="#00796B" stroke-width="2"/>
+    <text x="640" y="406" text-anchor="middle" font-family="Georgia, Microsoft YaHei, serif" font-size="30" font-weight="700" fill="#1F1E1D">患者级闭环</text>
+    <text x="640" y="438" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#6B6864">输入 → 推理 → 解释 → 报告 → 复核</text>
+  </g>
+
+  <g id="connectors">
+    <line x1="520" y1="334" x2="360" y2="248" stroke="#D8D6CC" stroke-width="2"/>
+    <line x1="640" y1="240" x2="640" y2="180" stroke="#D8D6CC" stroke-width="2"/>
+    <line x1="760" y1="334" x2="922" y2="248" stroke="#D8D6CC" stroke-width="2"/>
+    <line x1="538" y1="454" x2="374" y2="528" stroke="#D8D6CC" stroke-width="2"/>
+    <line x1="742" y1="454" x2="906" y2="528" stroke="#D8D6CC" stroke-width="2"/>
+  </g>
+
+  <g id="cap-single">
+    <rect x="120" y="180" width="300" height="126" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <use data-icon="tabler-outline/stethoscope" x="146" y="206" width="34" height="34" fill="#00796B" stroke-width="2"/>
+    <text x="196" y="226" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">单例推理</text>
+    <text x="196" y="257" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">1-30 张图像 · 患者级聚合</text>
+    <rect x="146" y="276" width="220" height="2" fill="#E6F3F0"/>
+  </g>
+
+  <g id="cap-batch">
+    <rect x="490" y="120" width="300" height="126" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <use data-icon="tabler-outline/users" x="516" y="146" width="34" height="34" fill="#2F7C95" stroke-width="2"/>
+    <text x="566" y="166" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">批量推理</text>
+    <text x="566" y="197" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">ZIP + manifest.csv · 异步排队</text>
+    <rect x="516" y="216" width="220" height="2" fill="#E6F1FB"/>
+  </g>
+
+  <g id="cap-explain">
+    <rect x="860" y="180" width="300" height="126" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <use data-icon="tabler-outline/activity-heartbeat" x="886" y="206" width="34" height="34" fill="#C15F3C" stroke-width="2"/>
+    <text x="936" y="226" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">结果解释</text>
+    <text x="936" y="257" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">逐图预测 · Grad-CAM 热力图</text>
+    <rect x="886" y="276" width="220" height="2" fill="#FCEDE8"/>
+  </g>
+
+  <g id="cap-report">
+    <rect x="154" y="508" width="300" height="126" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <use data-icon="tabler-outline/report-medical" x="180" y="534" width="34" height="34" fill="#00796B" stroke-width="2"/>
+    <text x="230" y="554" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">病例与报告</text>
+    <text x="230" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">历史检索 · 医生判断 · PDF</text>
+    <rect x="180" y="604" width="220" height="2" fill="#E6F3F0"/>
+  </g>
+
+  <g id="cap-ops">
+    <rect x="826" y="508" width="300" height="126" rx="16" fill="#FFFFFF" stroke="#D8D6CC"/>
+    <use data-icon="tabler-outline/shield-check" x="852" y="534" width="34" height="34" fill="#2F7C95" stroke-width="2"/>
+    <text x="902" y="554" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" font-weight="700" fill="#1F1E1D">管理保障</text>
+    <text x="902" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">认证 · 审计 · 指标 · 备份</text>
+    <rect x="852" y="604" width="220" height="2" fill="#E6F1FB"/>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: project README and local codebase analysis</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">03 / 12</text>
+  </g>
+</svg>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,8 +11,10 @@ import {
 } from 'lucide-react'
 import { getCases } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
-import ClassBadge, { classFromLabel } from '@/components/ClassBadge'
+import ClassBadge from '@/components/ClassBadge'
+import { classFromLabel } from '@/lib/classification'
 import type { PredictedClass, CaseListParams } from '@/lib/types'
+import WorkspaceContainer from '@/components/WorkspaceContainer'
 
 const classOptions: { value: string; label: string }[] = [
   { value: '', label: '所有类别' },
@@ -40,8 +42,6 @@ const tableClass =
   '[&_tr:last-child_td]:border-b-0'
 
 export default function History() {
-  const navigate = useNavigate()
-
   const [keyword, setKeyword] = useState('')
   const [classFilter, setClassFilter] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
@@ -82,7 +82,7 @@ export default function History() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <WorkspaceContainer>
       {/* 筛选栏 */}
       <div className="rounded-lg border border-border bg-bg-primary p-4 mb-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -180,7 +180,7 @@ export default function History() {
         <table className={tableClass}>
           <thead>
             <tr>
-              {['病例编号', '日期', '图像', '模型预测', '医生判断', '一致', '医生', '操作'].map((h) => (
+              {['病例编号', '日期', '图像', '模型预测', '医生判断', '一致', '医生'].map((h) => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
@@ -188,7 +188,7 @@ export default function History() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center">
+                <td colSpan={7} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <Loader2 className="w-5 h-5 animate-spin mb-2 text-text-tertiary" />
                     <span className="text-text-secondary">加载中...</span>
@@ -200,9 +200,14 @@ export default function History() {
                 const predClass = classFromLabel(item.predicted_class_zh)
                 const judgeClass = classFromLabel(item.doctor_judgment_zh)
                 return (
-                  <tr key={item.case_id} className="hover:bg-bg-secondary transition-colors cursor-pointer" onClick={() => navigate(`/case/${item.case_id}`)}>
+                  <tr key={item.case_id} className="hover:bg-bg-secondary transition-colors">
                     <td className="font-mono text-[11px] tabular-nums text-text-primary">
-                      {item.patient_no || item.case_id.slice(0, 12)}
+                      <Link
+                        to={`/case/${item.case_id}`}
+                        className="font-medium text-accent hover:text-accent-hover transition-colors"
+                      >
+                        {item.patient_no || item.case_id.slice(0, 12)}
+                      </Link>
                     </td>
                     <td className="text-[11px] text-text-secondary tabular-nums">
                       {formatDateTime(item.created_at)}
@@ -236,20 +241,12 @@ export default function History() {
                     <td className="text-[11px] text-text-secondary">
                       {item.doctor_name ?? '—'}
                     </td>
-                    <td>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/case/${item.case_id}`) }}
-                        className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors"
-                      >
-                        详情
-                      </button>
-                    </td>
                   </tr>
                 )
               })
             ) : (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center">
+                <td colSpan={7} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <Inbox className="w-6 h-6 mb-2 text-text-tertiary" />
                     <span className="text-text-secondary">
@@ -270,6 +267,7 @@ export default function History() {
           </div>
           <div className="flex items-center gap-1.5">
             <button
+              aria-label="上一页病例"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"
@@ -277,6 +275,7 @@ export default function History() {
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
+              aria-label="下一页病例"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
               className="p-1 rounded-md border border-border-secondary bg-bg-primary text-text-primary disabled:opacity-30 hover:bg-bg-tertiary transition-colors"
@@ -286,6 +285,6 @@ export default function History() {
           </div>
         </div>
       )}
-    </div>
+    </WorkspaceContainer>
   )
 }

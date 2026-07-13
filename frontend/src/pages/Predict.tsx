@@ -2,18 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Play, Loader2, RotateCcw } from 'lucide-react'
 import MultiImageUploader from '@/components/MultiImageUploader'
-import PerImagePredictionCard from '@/components/PerImagePredictionCard'
-import ProbabilityBars from '@/components/ProbabilityBars'
-import ClassBadge from '@/components/ClassBadge'
 import JudgmentForm from '@/components/JudgmentForm'
+import AiSuggestionPanel from '@/components/AiSuggestionPanel'
+import ClinicalWorkbench from '@/components/ClinicalWorkbench'
+import ImageReviewPanel from '@/components/ImageReviewPanel'
+import WorkspaceContainer from '@/components/WorkspaceContainer'
 import {
   postPredict,
   getTaskStatus,
   getCaseDetail,
   postJudgment,
   getReportUrl,
+  getImageUrl,
 } from '@/api/client'
 import type { JudgmentRequest, PredictResponse, TaskStatusResponse } from '@/lib/types'
+import { formatDateTime } from '@/lib/utils'
 
 const inputClass =
   'w-full rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-xs text-text-primary outline-none focus:border-info-border transition-colors'
@@ -28,12 +31,6 @@ const CHECK_PROJECT_OPTIONS = [
 ] as const
 
 const DEFAULT_CHECK_PROJECT = '经阴道三维超声'
-
-const classTypeMap: Record<string, 'normal' | 'endometrial_cancer' | 'polyp'> = {
-  normal: 'normal',
-  endometrial_cancer: 'endometrial_cancer',
-  polyp: 'polyp',
-}
 
 function formatWaitMs(ms: number): string {
   if (!ms || ms <= 0) return '—'
@@ -96,9 +93,7 @@ export default function Predict() {
 
   const judgment = useMutation({
     mutationFn: (body: JudgmentRequest) => postJudgment(caseId!, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['case', caseId] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['case', caseId] }),
   })
 
   const handleSubmit = () => {
@@ -160,8 +155,119 @@ export default function Predict() {
     return '处理中...'
   }, [taskQuery.data, imageCount, elapsed, estimatedTotalSec])
 
+  if (detail) {
+    return (
+      <WorkspaceContainer>
+        <ClinicalWorkbench
+          left={
+            <div className="space-y-4 rounded-md border border-border bg-bg-primary p-4">
+              <div className="space-y-1">
+                <h1 className="text-base text-text-primary">病例信息</h1>
+                <div className="break-all font-mono text-[11px] tabular-nums text-text-tertiary">
+                  {detail.case_id}
+                </div>
+              </div>
+              <dl className="space-y-3 text-xs">
+                <div>
+                  <dt className="text-[11px] text-text-tertiary">患者编号</dt>
+                  <dd className="tabular-nums text-text-primary">{detail.patient_no}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-text-tertiary">检查方式</dt>
+                  <dd className="text-text-primary">{detail.check_project || '未记录'}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-text-tertiary">检查所见</dt>
+                  <dd className="whitespace-pre-wrap text-text-primary">
+                    {detail.clinical_text || '未填写'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-text-tertiary">图像数</dt>
+                  <dd className="tabular-nums text-text-primary">{detail.images.length} 张</dd>
+                </div>
+              </dl>
+              {detail.images.length > 0 && (
+                <div className="grid grid-cols-3 gap-1.5" aria-label="影像缩略概览">
+                  {detail.images.slice(0, 6).map((image, index) => (
+                    <div
+                      key={image.image_id}
+                      className="aspect-square overflow-hidden rounded-md border border-border bg-bg-tertiary"
+                    >
+                      <img
+                        src={getImageUrl(image.image_id)}
+                        alt={`缩略图 ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleClear}
+                className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3.5 py-2 text-xs font-medium text-text-primary transition-colors hover:bg-bg-tertiary"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                新病例
+              </button>
+            </div>
+          }
+          center={<ImageReviewPanel images={detail.images} />}
+          right={
+            <div className="space-y-4">
+              {pred ? (
+                <AiSuggestionPanel
+                  predictedClass={pred.predicted_class}
+                  predictedClassZh={pred.predicted_class_zh}
+                  confidence={pred.confidence}
+                  probabilities={pred.probabilities}
+                  detail={`聚合策略 ${pred.aggregation_strategy} · ${pred.image_count} 张 · ${pred.model_version}`}
+                />
+              ) : (
+                <div className="rounded-md border border-border bg-bg-primary p-4 text-xs text-text-tertiary">
+                  暂无 AI 辅助建议
+                </div>
+              )}
+              <div className="rounded-md border border-border bg-bg-primary p-4">
+                {detail.judgment && (
+                  <div className="mb-3 border-b border-border pb-3 text-[11px] text-text-tertiary">
+                    已保存判断 · 医生 {detail.judgment.doctor_id} ·{' '}
+                    <span className="tabular-nums">
+                      {formatDateTime(detail.judgment.judged_at)}
+                    </span>
+                  </div>
+                )}
+                <JudgmentForm
+                  key={`${detail.case_id}-${detail.judgment?.judged_at ?? 'new'}`}
+                  initialClass={detail.judgment?.final_class ?? null}
+                  initialRecommendation={detail.judgment?.recommendation ?? ''}
+                  initialNote={detail.judgment?.note ?? ''}
+                  initialJudgedAt={detail.judgment?.judged_at ?? null}
+                  onSubmit={(body) => judgment.mutateAsync(body)}
+                  loading={judgment.isPending}
+                  reportUrl={getReportUrl(detail.case_id)}
+                />
+                {judgment.isSuccess && (
+                  <div className="mt-3 rounded-md border border-info-border bg-info-bg p-2.5 text-xs text-info-text">
+                    判断已提交成功
+                  </div>
+                )}
+                {judgment.isError && (
+                  <div className="mt-3 rounded-md border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text">
+                    提交失败：{judgment.error.message}
+                  </div>
+                )}
+              </div>
+            </div>
+          }
+        />
+      </WorkspaceContainer>
+    )
+  }
+
   return (
-    <div className="max-w-6xl mx-auto">
+    <WorkspaceContainer>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* 左侧 - 输入 */}
         <div className="space-y-4">
@@ -306,65 +412,10 @@ export default function Predict() {
             </div>
           )}
 
-          {detail && pred && (
-            <>
-              {/* 病人级预测卡 */}
-              <div className="rounded-lg border border-border bg-bg-primary p-4 space-y-3">
-                <div className="text-[11px] font-medium text-text-secondary">
-                  病人级预测结果
-                </div>
-                <div className="flex items-baseline gap-2.5 flex-wrap">
-                  <span className="text-xl font-medium text-text-primary">
-                    {pred.predicted_class_zh}
-                  </span>
-                  <ClassBadge
-                    type={classTypeMap[pred.predicted_class]}
-                    label={pred.predicted_class_zh}
-                    confidence={pred.confidence}
-                  />
-                </div>
-                <ProbabilityBars probabilities={pred.probabilities} />
-                <div className="text-[10px] text-text-tertiary tabular-nums">
-                  聚合策略 {pred.aggregation_strategy} · {pred.image_count} 张 · {pred.model_version}
-                </div>
-              </div>
-
-              {/* 各图明细 */}
-              <div className="space-y-2">
-                <div className="text-[11px] font-medium text-text-secondary">
-                  各图明细（{detail.images.length} 张）
-                </div>
-                {detail.images.map((img, i) => (
-                  <PerImagePredictionCard
-                    key={img.image_id}
-                    image={img}
-                    defaultOpen={i === 0}
-                  />
-                ))}
-              </div>
-
-              {/* 医生判断表单 */}
-              <div className="rounded-lg border border-border bg-bg-primary p-4">
-                <JudgmentForm
-                  initialClass={detail.judgment?.final_class ?? pred.predicted_class}
-                  initialRecommendation={detail.judgment?.recommendation ?? ''}
-                  initialNote={detail.judgment?.note ?? ''}
-                  onSubmit={(body) => judgment.mutate(body)}
-                  loading={judgment.isPending}
-                  reportUrl={getReportUrl(detail.case_id)}
-                />
-                {judgment.isSuccess && (
-                  <div className="mt-3 rounded-md border border-info-border bg-info-bg p-2.5 text-xs text-info-text">
-                    判断已提交成功
-                  </div>
-                )}
-                {judgment.isError && (
-                  <div className="mt-3 rounded-md border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text">
-                    提交失败：{judgment.error.message}
-                  </div>
-                )}
-              </div>
-            </>
+          {taskDone && caseQuery.isError && (
+            <div className="rounded-md border border-danger-border bg-danger-bg p-3 text-xs text-danger-text">
+              结果加载失败：{caseQuery.error.message}
+            </div>
           )}
 
           {!submission && !predict.isPending && (
@@ -376,6 +427,6 @@ export default function Predict() {
           )}
         </div>
       </div>
-    </div>
+    </WorkspaceContainer>
   )
 }

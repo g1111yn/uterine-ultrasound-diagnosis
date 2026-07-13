@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#F7F6F0"/>
+
+  <g id="bg-decoration">
+    <circle cx="1056" cy="164" r="112" fill="#FCEDE8"/>
+    <circle cx="1056" cy="164" r="72" fill="#F7F6F0" stroke="#C15F3C" stroke-width="2"/>
+    <use data-icon="tabler-outline/alert-circle" x="1026" y="134" width="60" height="60" fill="#C15F3C" stroke-width="2"/>
+    <path d="M82 604 H1198" stroke="#D8D6CC" stroke-width="1.5"/>
+  </g>
+
+  <g id="principle">
+    <text x="84" y="154" font-family="Georgia, Microsoft YaHei, serif" font-size="48" font-weight="700" fill="#1F1E1D">AI 输出是风险提示，</text>
+    <text x="84" y="214" font-family="Georgia, Microsoft YaHei, serif" font-size="48" font-weight="700" fill="#1F1E1D">不是最终诊断结论</text>
+    <rect x="84" y="244" width="420" height="5" rx="2.5" fill="#C15F3C"/>
+    <text x="84" y="298" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="21" fill="#6B6864">项目必须把“辅助诊断”边界写进产品表达和临床使用流程。</text>
+  </g>
+
+  <g id="boundary-lines">
+    <text x="154" y="390" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#00796B">01</text>
+    <text x="218" y="388" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">使用“预测概率”“风险提示”“复核参考”等表述。</text>
+    <path d="M154 418 H1000" stroke="#D8D6CC" stroke-width="1"/>
+
+    <text x="154" y="468" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#C15F3C">02</text>
+    <text x="218" y="466" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">避免“确诊”“替代医生”“自动诊断”等绝对化措辞。</text>
+    <path d="M154 496 H1000" stroke="#D8D6CC" stroke-width="1"/>
+
+    <text x="154" y="546" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#2F7C95">03</text>
+    <text x="218" y="544" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">医生判断、病理结果和临床流程仍是最终依据。</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Clinical boundary statement for AI-assisted diagnosis</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">11 / 12</text>
+  </g>
+</svg>

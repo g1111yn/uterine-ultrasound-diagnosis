@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00796B" />
+    </marker>
+  </defs>
+  <rect width="1280" height="720" fill="#F7F6F0" />
+
+  <g id="header">
+    <text x="56" y="70" font-family="Georgia, Microsoft YaHei, serif" font-size="36" font-weight="700" fill="#1F1E1D">V2 模型以图像为主导融合医学文本上下文</text>
+    <text x="56" y="108" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">EfficientNet-B3 与医学 BERT 的门控融合，让系统同时利用影像形态和检查描述。</text>
+  </g>
+
+  <g id="architecture-flow">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M80,178 H298 A16,16 0 0 1 314,194 V298 A16,16 0 0 1 298,314 H80 A16,16 0 0 1 64,298 V194 A16,16 0 0 1 80,178 Z" />
+    
+  <g transform="translate(92.0, 204.0) scale(1.4166666666666667)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M3 12h4.5l1.5 -6l4 12l2 -9l1.5 3h4.5" />
+  </g>
+    <text x="140" y="224" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">超声图像</text>
+    <text x="92" y="262" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">300 x 300</text>
+    <text x="92" y="290" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">RGB · ImageNet 归一化</text>
+
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M80,374 H298 A16,16 0 0 1 314,390 V494 A16,16 0 0 1 298,510 H80 A16,16 0 0 1 64,494 V390 A16,16 0 0 1 80,374 Z" />
+    
+  <g transform="translate(92.0, 400.0) scale(1.4166666666666667)" fill="none" stroke="#2F7C95" stroke-width="2">
+    <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+    <path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" />
+    <path d="M10 14l4 0" />
+    <path d="M12 12l0 4" />
+  </g>
+    <text x="140" y="420" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">检查文本</text>
+    <text x="92" y="458" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">检查方式 + 检查所见</text>
+    <text x="92" y="486" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">empty → zero vector</text>
+
+    <line x1="314" y1="246" x2="410" y2="246" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+    <line x1="314" y1="442" x2="410" y2="442" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <path fill="#E6F3F0" stroke="#D8D6CC" d="M440,178 H658 A16,16 0 0 1 674,194 V298 A16,16 0 0 1 658,314 H440 A16,16 0 0 1 424,298 V194 A16,16 0 0 1 440,178 Z" />
+    <text x="456" y="224" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">EfficientNet-B3</text>
+    <text x="456" y="262" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">1536-dim feature</text>
+    <text x="456" y="290" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">图像形态主输入</text>
+
+    <path fill="#E6F1FB" stroke="#D8D6CC" d="M440,374 H658 A16,16 0 0 1 674,390 V494 A16,16 0 0 1 658,510 H440 A16,16 0 0 1 424,494 V390 A16,16 0 0 1 440,374 Z" />
+    <text x="456" y="420" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">医学 BERT</text>
+    <text x="456" y="458" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">768-dim CLS</text>
+    <text x="456" y="486" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">保留检查上下文</text>
+
+    <line x1="674" y1="246" x2="774" y2="332" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+    <line x1="674" y1="442" x2="774" y2="360" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <path fill="#FFFFFF" stroke="#00796B" stroke-width="2" d="M798,258 H1012 A18,18 0 0 1 1030,276 V412 A18,18 0 0 1 1012,430 H798 A18,18 0 0 1 780,412 V276 A18,18 0 0 1 798,258 Z" />
+    
+  <g transform="translate(812.0, 288.0) scale(1.5833333333333333)" fill="none" stroke="#00796B" stroke-width="2">
+    <path d="M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8" />
+    <path d="M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8" />
+    <path d="M17.5 16a3.5 3.5 0 0 0 0 -7h-.5" />
+    <path d="M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0" />
+    <path d="M6.5 16a3.5 3.5 0 0 1 0 -7h.5" />
+    <path d="M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10" />
+  </g>
+    <text x="866" y="313" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">图像主导门控融合</text>
+    <text x="812" y="358" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">ImageDominantGatedFusion</text>
+    <text x="812" y="386" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">hidden = 256</text>
+    <text x="812" y="414" font-family="Consolas, Courier New, monospace" font-size="15" fill="#6B6864">concat → 512</text>
+
+    <line x1="1030" y1="344" x2="1100" y2="344" stroke="#00796B" stroke-width="2.5" marker-end="url(#arrowHead)" />
+
+    <path fill="#FCEDE8" stroke="#D8D6CC" d="M1122,258 H1212 A18,18 0 0 1 1230,276 V412 A18,18 0 0 1 1212,430 H1122 A18,18 0 0 1 1104,412 V276 A18,18 0 0 1 1122,258 Z" />
+    <text x="1167" y="308" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="22" font-weight="700" fill="#1F1E1D">分类器</text>
+    <text x="1167" y="350" text-anchor="middle" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">512→256→3</text>
+    <text x="1167" y="388" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#C15F3C">softmax</text>
+  </g>
+
+  <g id="output-classes">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M666,542 H1214 A16,16 0 0 1 1230,558 V598 A16,16 0 0 1 1214,614 H666 A16,16 0 0 1 650,598 V558 A16,16 0 0 1 666,542 Z" />
+    <text x="682" y="586" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="18" font-weight="700" fill="#1F1E1D">输出类别</text>
+    <circle cx="806" cy="579" r="10" fill="#3B6D11" />
+    <text x="824" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">正常</text>
+    <circle cx="918" cy="579" r="10" fill="#A32D2D" />
+    <text x="936" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">子宫内膜癌</text>
+    <circle cx="1090" cy="579" r="10" fill="#854F0B" />
+    <text x="1108" y="585" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="16" fill="#1F1E1D">息肉</text>
+  </g>
+
+  <g id="training-facts">
+    <path fill="#FFFFFF" stroke="#D8D6CC" d="M80,542 H590 A16,16 0 0 1 606,558 V598 A16,16 0 0 1 590,614 H80 A16,16 0 0 1 64,598 V558 A16,16 0 0 1 80,542 Z" />
+    <text x="96" y="573" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#00796B">10,587</text>
+    <text x="202" y="573" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">例患者</text>
+    <text x="292" y="573" font-family="Georgia, Microsoft YaHei, serif" font-size="28" font-weight="700" fill="#00796B">196,255</text>
+    <text x="430" y="573" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="15" fill="#6B6864">张图像</text>
+    <text x="96" y="602" font-family="Consolas, Courier New, monospace" font-size="14" fill="#6B6864">5-fold CV · Fold 3 EMA · pat_acc = 0.8600</text>
+  </g>
+
+  <g id="footer">
+    <text x="56" y="680" font-family="Microsoft YaHei, PingFang SC, Arial, sans-serif" font-size="12" fill="#8B8881">Source: README and backend/app/services/inference.py</text>
+    <text x="1224" y="680" text-anchor="end" font-family="Consolas, Courier New, monospace" font-size="12" fill="#8B8881">04 / 12</text>
+  </g>
+</svg>

@@ -35,7 +35,7 @@ class TaskRecord:
     task_id: str
     kind: str  # "per_image" | "aggregation"
     priority: int
-    status: str = "queued"  # queued | running | done | failed
+    status: str = "queued"  # queued | running | done | failed | cancelled
     submitted_at: float = field(default_factory=time.time)
     started_at: Optional[float] = None
     finished_at: Optional[float] = None
@@ -140,6 +140,33 @@ class InferenceQueue:
         with self._cv:
             return self._tasks.get(task_id)
 
+    def cancel(self, task_id: str) -> bool:
+        """Cancel a task that has not started.
+
+        Running inference cannot be interrupted safely, so False means the
+        caller must ignore its eventual result rather than assume cancellation.
+        """
+        callback = None
+        rec = None
+        with self._cv:
+            rec = self._tasks.get(task_id)
+            if rec is None or rec.status != "queued":
+                return False
+            rec.status = "cancelled"
+            rec.error = "Task cancelled before execution."
+            rec.finished_at = time.time()
+            self._heap = [item for item in self._heap if item.task_id != task_id]
+            heapq.heapify(self._heap)
+            callback = rec.on_complete
+            self._cv.notify_all()
+
+        if callback:
+            try:
+                callback(rec)
+            except Exception:
+                traceback.print_exc()
+        return True
+
     def status_snapshot(self, task_id: str) -> Optional[dict]:
         with self._cv:
             rec = self._tasks.get(task_id)
@@ -231,22 +258,23 @@ class InferenceQueue:
 
     def _pop(self) -> Optional[TaskRecord]:
         with self._cv:
-            while not self._stop.is_set() and not self._heap:
+            while not self._stop.is_set():
+                while self._heap:
+                    item = heapq.heappop(self._heap)
+                    rec = self._tasks.get(item.task_id)
+                    if rec is None or rec.status != "queued":
+                        continue
+                    rec.status = "running"
+                    rec.started_at = time.time()
+                    return rec
                 self._cv.wait(timeout=0.5)
-            if self._stop.is_set():
-                return None
-            if not self._heap:
-                return None
-            item = heapq.heappop(self._heap)
-            return self._tasks.get(item.task_id)
+            return None
 
     def _run(self):
         while not self._stop.is_set():
             rec = self._pop()
             if rec is None:
                 continue
-            rec.status = "running"
-            rec.started_at = time.time()
             try:
                 if rec.kind == "per_image":
                     self._process_per_image(rec)

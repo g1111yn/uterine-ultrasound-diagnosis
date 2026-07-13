@@ -1,11 +1,14 @@
 """Batch inference API (V2)."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from typing import Literal
+
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.models.db import BatchJob, Case, Prediction, User, get_db
+from app.models.db import BatchJob, Case, Judgment, Prediction, User, get_db
 from app.models.schemas import (
     BatchJobListItem,
     BatchJobListResponse,
@@ -17,6 +20,24 @@ from app.services import audit, auth
 from app.services.batch_pipeline import BatchError, cancel_batch, submit_batch
 
 router = APIRouter()
+
+BatchPublicStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _public_status(status: str) -> str:
+    return "queued" if status == "pending" else status
+
+
+def _internal_status_filter(status: str) -> str:
+    return "pending" if status == "queued" else status
 
 
 def _err(code: str, message: str, status: int = 400, details: list[dict] | None = None):
@@ -30,10 +51,14 @@ def _err(code: str, message: str, status: int = 400, details: list[dict] | None 
 async def list_batch_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    status: BatchPublicStatus | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.require_user),
 ):
-    q = db.query(BatchJob).filter(BatchJob.user_id == current_user.user_id)
+    _ = current_user
+    q = db.query(BatchJob)
+    if status:
+        q = q.filter(BatchJob.status == _internal_status_filter(status))
     total = q.count()
     jobs = (
         q.order_by(BatchJob.started_at.desc())
@@ -44,7 +69,7 @@ async def list_batch_jobs(
     items = [
         BatchJobListItem(
             job_id=j.job_id,
-            status=j.status,
+            status=_public_status(j.status),
             total_patients=j.total_patients,
             completed_patients=j.completed_patients,
             succeeded_patients=j.succeeded_patients,
@@ -114,14 +139,15 @@ async def get_batch_status(
 
     # All patients for this batch (no limit — batch detail page needs full list).
     rows = (
-        db.query(Case, Prediction)
+        db.query(Case, Prediction, Judgment.judged_at)
         .outerjoin(Prediction, Case.case_id == Prediction.case_id)
+        .outerjoin(Judgment, Case.case_id == Judgment.case_id)
         .filter(Case.batch_job_id == job_id)
         .order_by(Case.created_at.asc())
         .all()
     )
     results = []
-    for case, pred in rows:
+    for case, pred, judgment_updated_at in rows:
         if pred:
             results.append(BatchResultItem(
                 case_id=case.case_id,
@@ -130,18 +156,26 @@ async def get_batch_status(
                 predicted_class_zh=CLASS_ZH.get(pred.predicted_class, pred.predicted_class),
                 confidence=pred.confidence,
                 image_count=pred.image_count,
+                has_judgment=judgment_updated_at is not None,
+                judgment_updated_at=_as_utc(judgment_updated_at),
             ))
         else:
             results.append(BatchResultItem(
                 case_id=case.case_id,
                 patient_no=case.patient_no,
                 image_count=0,
-                error="推理未完成",
+                error=case.batch_error or None,
+                has_judgment=judgment_updated_at is not None,
+                judgment_updated_at=_as_utc(judgment_updated_at),
             ))
 
     # Rough ETA: remaining images * moving-average per-image latency.
     from app.services.inference_queue import queue  # local import avoids cycle
-    remaining_images = max(job.total_images - job.completed_images, 0)
+    remaining_images = (
+        max(job.total_images - job.completed_images, 0)
+        if job.status in ("pending", "running")
+        else 0
+    )
     eta_ms = int(remaining_images * queue._ema_ms) if remaining_images else 0
 
     return BatchStatusResponse(
@@ -152,7 +186,8 @@ async def get_batch_status(
         failed_patients=job.failed_patients,
         total_images=job.total_images,
         completed_images=job.completed_images,
-        status=job.status,
+        status=_public_status(job.status),
+        error=job.error_message or None,
         aggregation_strategy=job.aggregation_strategy,
         current_patient=job.current_patient or "",
         started_at=job.started_at,

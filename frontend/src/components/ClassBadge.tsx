@@ -1,15 +1,16 @@
-type ClassType = 'normal' | 'endometrial_cancer' | 'polyp'
+import type { ClassificationClass } from '@/lib/classification'
 
-const config: Record<ClassType, { label: string; className: string }> = {
+const config: Record<ClassificationClass, { label: string; className: string }> = {
   normal: { label: '正常', className: 'bg-success-bg text-success-text' },
   endometrial_cancer: { label: '内膜癌', className: 'bg-danger-bg text-danger-text' },
   polyp: { label: '息肉', className: 'bg-warning-bg text-warning-text' },
+  indeterminate: { label: '无法判断', className: 'bg-bg-tertiary text-text-secondary' },
 }
 
 const fallback = { label: '—', className: 'bg-bg-tertiary text-text-secondary' }
 
 interface Props {
-  type?: ClassType | null
+  type?: ClassificationClass | null
   confidence?: number
   showDot?: boolean
   label?: string
@@ -34,12 +35,4 @@ export default function ClassBadge({ type, confidence, showDot = false, label }:
       )}
     </span>
   )
-}
-
-export function classFromLabel(label: string | null | undefined): ClassType | null {
-  if (!label) return null
-  if (label.includes('内膜癌')) return 'endometrial_cancer'
-  if (label.includes('息肉')) return 'polyp'
-  if (label.includes('正常')) return 'normal'
-  return null
 }
