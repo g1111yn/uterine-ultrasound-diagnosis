@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.models.db import BatchJob, Case, Prediction, User, get_db
+from app.models.db import BatchJob, Case, Judgment, Prediction, User, get_db
 from app.models.schemas import (
     BatchJobListItem,
     BatchJobListResponse,
@@ -130,14 +130,15 @@ async def get_batch_status(
 
     # All patients for this batch (no limit — batch detail page needs full list).
     rows = (
-        db.query(Case, Prediction)
+        db.query(Case, Prediction, Judgment.id)
         .outerjoin(Prediction, Case.case_id == Prediction.case_id)
+        .outerjoin(Judgment, Case.case_id == Judgment.case_id)
         .filter(Case.batch_job_id == job_id)
         .order_by(Case.created_at.asc())
         .all()
     )
     results = []
-    for case, pred in rows:
+    for case, pred, judgment_id in rows:
         if pred:
             results.append(BatchResultItem(
                 case_id=case.case_id,
@@ -146,13 +147,15 @@ async def get_batch_status(
                 predicted_class_zh=CLASS_ZH.get(pred.predicted_class, pred.predicted_class),
                 confidence=pred.confidence,
                 image_count=pred.image_count,
+                has_judgment=judgment_id is not None,
             ))
         else:
             results.append(BatchResultItem(
                 case_id=case.case_id,
                 patient_no=case.patient_no,
                 image_count=0,
-                error=case.batch_error or "推理未完成",
+                error=case.batch_error or None,
+                has_judgment=judgment_id is not None,
             ))
 
     # Rough ETA: remaining images * moving-average per-image latency.

@@ -86,6 +86,7 @@ class BatchResultItem(BaseModel):
     confidence: Optional[float] = None
     image_count: int
     error: Optional[str] = None
+    has_judgment: bool = False
 
 
 class BatchJobListItem(BaseModel):

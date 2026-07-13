@@ -617,6 +617,74 @@ class ClinicalWorkflowTests(unittest.TestCase):
         self.assertEqual(listing.items[0].status, "queued")
         self.assertEqual(detail.status, "queued")
 
+    def test_batch_status_marks_patient_with_saved_judgment(self):
+        job = BatchJob(
+            job_id="batch-judged",
+            user_id=self.user.user_id,
+            status="completed",
+            total_patients=1,
+            completed_patients=1,
+            succeeded_patients=1,
+            total_images=1,
+            completed_images=1,
+        )
+        case = Case(
+            case_id="case-judged",
+            patient_no="p-judged",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+        )
+        prediction = Prediction(
+            case_id=case.case_id,
+            aggregation_strategy="mean",
+            prob_normal=0.8,
+            prob_cancer=0.1,
+            prob_polyp=0.1,
+            predicted_class="normal",
+            confidence=0.8,
+            image_count=1,
+            model_version="test",
+        )
+        judgment = Judgment(
+            case_id=case.case_id,
+            final_class="normal",
+            recommendation="none",
+            note="",
+            doctor_id=self.user.user_id,
+        )
+        self.db.add_all([job, case, prediction, judgment])
+        self.db.commit()
+
+        response = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
+
+        self.assertTrue(response.results[0].has_judgment)
+
+    def test_batch_status_keeps_running_patient_pending_without_fake_error(self):
+        job = BatchJob(
+            job_id="batch-pending-patient",
+            user_id=self.user.user_id,
+            status="running",
+            total_patients=1,
+            total_images=1,
+        )
+        case = Case(
+            case_id="case-pending-patient",
+            patient_no="p-pending",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+        )
+        self.db.add_all([job, case])
+        self.db.commit()
+
+        response = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
+        item = response.results[0]
+
+        self.assertIsNone(item.predicted_class)
+        self.assertIsNone(item.error)
+        self.assertFalse(item.has_judgment)
+
     def test_batch_job_list_maps_queued_filter_to_internal_pending_status(self):
         other = User(user_id="queued-other", display_name="其他医生", password_hash="unused")
         self.db.add_all([
@@ -664,6 +732,7 @@ class ClinicalWorkflowTests(unittest.TestCase):
         response = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
 
         self.assertEqual(response.results[0].error, "DICOM 图像无法生成可用预览。")
+        self.assertFalse(response.results[0].has_judgment)
 
     def test_failed_patient_inference_persists_the_queue_error(self):
         job = BatchJob(

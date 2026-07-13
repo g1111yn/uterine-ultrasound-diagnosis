@@ -218,6 +218,7 @@ export interface BatchResultItem {
   predicted_class_zh: string | null
   confidence: number | null
   error: string | null
+  has_judgment: boolean
 }
 
 export interface BatchJobListItem {
