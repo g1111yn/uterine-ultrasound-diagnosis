@@ -660,6 +660,42 @@ class ClinicalWorkflowTests(unittest.TestCase):
 
         self.assertTrue(response.results[0].has_judgment)
 
+    def test_batch_status_marks_successful_patient_without_judgment_as_unjudged(self):
+        job = BatchJob(
+            job_id="batch-success-unjudged",
+            user_id=self.user.user_id,
+            status="completed",
+            total_patients=1,
+            completed_patients=1,
+            succeeded_patients=1,
+            total_images=1,
+            completed_images=1,
+        )
+        case = Case(
+            case_id="case-success-unjudged",
+            patient_no="p-success-unjudged",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+            batch_job_id=job.job_id,
+        )
+        prediction = Prediction(
+            case_id=case.case_id,
+            aggregation_strategy="mean",
+            prob_normal=0.8,
+            prob_cancer=0.1,
+            prob_polyp=0.1,
+            predicted_class="normal",
+            confidence=0.8,
+            image_count=1,
+            model_version="test",
+        )
+        self.db.add_all([job, case, prediction])
+        self.db.commit()
+
+        response = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
+
+        self.assertFalse(response.results[0].has_judgment)
+
     def test_batch_status_keeps_running_patient_pending_without_fake_error(self):
         job = BatchJob(
             job_id="batch-pending-patient",
