@@ -724,6 +724,31 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     )
   })
 
+  it.each(['cancelled', 'failed', 'completed'] as const)(
+    'announces that a %s batch ended when pending predictions remain',
+    async (status) => {
+      const user = userEvent.setup()
+      vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
+      renderPage(makeBatchStatus({
+        status,
+        results: [results[0], results[1], results[2]],
+      }))
+
+      await user.click(await screen.findByRole('radio', { name: '正常' }))
+      await user.click(screen.getByRole('button', { name: '保存并下一位' }))
+
+      expect((await screen.findByText(
+        '当前可诊断患者均已完成，任务已结束，仍有患者未生成推理结果',
+      )).closest('[role="status"]')).toBeInTheDocument()
+      expect(screen.queryByText('当前已完成患者均已诊断，等待其余患者推理完成'))
+        .not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /患者 P001/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    },
+  )
+
   it('stays on the last patient and announces batch completion for a terminal batch', async () => {
     const user = userEvent.setup()
     vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)

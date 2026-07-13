@@ -268,11 +268,13 @@ export default function BatchDetail() {
     const hasPendingPrediction = latestBatch.results.some(
       (item) => !item.predicted_class && !item.error,
     )
-    setCompletionMessage(
-      batchIsTerminal && !hasPendingPrediction
-        ? '本批次已全部诊断'
-        : '当前已完成患者均已诊断，等待其余患者推理完成',
-    )
+    let nextCompletionMessage = '当前已完成患者均已诊断，等待其余患者推理完成'
+    if (batchIsTerminal) {
+      nextCompletionMessage = hasPendingPrediction
+        ? '当前可诊断患者均已完成，任务已结束，仍有患者未生成推理结果'
+        : '本批次已全部诊断'
+    }
+    setCompletionMessage(nextCompletionMessage)
   }
 
   const queue = (
