@@ -35,13 +35,19 @@ function CaseScopedDiagnosis({
 }: Props) {
   const queryClient = useQueryClient()
   const onDirtyChangeRef = useRef(onDirtyChange)
+  const lifecycleTokenRef = useRef({ caseId, active: false })
 
   useEffect(() => {
     onDirtyChangeRef.current = onDirtyChange
   }, [onDirtyChange])
 
-  useEffect(() => () => {
-    onDirtyChangeRef.current(false)
+  useEffect(() => {
+    const token = lifecycleTokenRef.current
+    token.active = true
+    return () => {
+      token.active = false
+      onDirtyChangeRef.current(false)
+    }
   }, [])
 
   const detail = useQuery({
@@ -104,7 +110,9 @@ function CaseScopedDiagnosis({
   const data = detail.data
   const saveJudgment = (body: JudgmentRequest) => judgment.mutateAsync(body)
   const saveAndNext = async (body: JudgmentRequest) => {
+    const lifecycleToken = lifecycleTokenRef.current
     await saveJudgment(body)
+    if (!lifecycleToken.active || lifecycleToken.caseId !== caseId) return
     onDirtyChangeRef.current(false)
     onSavedAndNext(caseId)
   }

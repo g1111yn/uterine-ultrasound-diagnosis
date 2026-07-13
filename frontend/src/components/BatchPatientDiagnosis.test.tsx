@@ -419,4 +419,78 @@ describe('BatchPatientDiagnosis', () => {
       .toHaveValue('尚未保存的本地编辑')
     expect(screen.queryByDisplayValue('后台返回的新内容')).not.toBeInTheDocument()
   })
+
+  it('ignores a stale save-and-next continuation after another patient becomes dirty', async () => {
+    const user = userEvent.setup()
+    let resolveSave!: (response: JudgmentResponse) => void
+    vi.mocked(getCaseDetail).mockImplementation(async (caseId) => (
+      caseId === 'case-a'
+        ? { ...caseDetail, case_id: 'case-a' }
+        : {
+            ...caseDetail,
+            case_id: 'case-b',
+            patient_no: 'P-002',
+            judgment: {
+              ...caseDetail.judgment!,
+              note: '病例 B 原始备注',
+            },
+          }
+    ))
+    vi.mocked(postJudgment).mockImplementation(() => new Promise((resolve) => {
+      resolveSave = resolve
+    }))
+    const onSavedAndNext = vi.fn()
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    function StaleSecondaryHarness() {
+      const [caseId, setCaseId] = useState('case-a')
+      const [dirty, setDirty] = useState(false)
+      return (
+        <>
+          <output data-testid="parent-dirty">{String(dirty)}</output>
+          <button type="button" onClick={() => setCaseId('case-b')}>选择病例 B</button>
+          <BatchPatientDiagnosis
+            caseId={caseId}
+            jobId="job-running"
+            onDirtyChange={setDirty}
+            onSavedAndNext={onSavedAndNext}
+          >
+            {({ center, right }) => (
+              <div>
+                <section aria-label="批量影像工作区">{center}</section>
+                <section aria-label="批量诊断工作区">{right}</section>
+              </div>
+            )}
+          </BatchPatientDiagnosis>
+        </>
+      )
+    }
+
+    const router = createMemoryRouter([{ path: '/', element: <StaleSecondaryHarness /> }])
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: '保存并下一位' }))
+    await waitFor(() => expect(postJudgment).toHaveBeenCalledWith('case-a', expect.anything()))
+    await user.click(screen.getByRole('button', { name: '选择病例 B' }))
+
+    const note = await screen.findByRole('textbox', { name: '备注' })
+    expect(note).toHaveValue('病例 B 原始备注')
+    await user.type(note, '，本地编辑')
+    await waitFor(() => expect(screen.getByTestId('parent-dirty')).toHaveTextContent('true'))
+
+    await act(async () => resolveSave(judgmentResponse))
+
+    await waitFor(() => {
+      expect(queryClient.getQueryState(['case', 'case-a'])?.isInvalidated).toBe(true)
+    })
+    expect(onSavedAndNext).not.toHaveBeenCalled()
+    expect(screen.getByTestId('parent-dirty')).toHaveTextContent('true')
+    expect(note).toHaveValue('病例 B 原始备注，本地编辑')
+  })
 })
