@@ -313,6 +313,12 @@ export default function BatchDetail() {
             <div className="text-[11px] text-text-tertiary">
               推理完成后将自动开放医生判断
             </div>
+            <Link
+              to={`/case/${selectedItem.case_id}`}
+              className="text-[11px] font-medium text-accent transition-colors hover:text-accent-hover"
+            >
+              打开完整详情
+            </Link>
           </div>
         )}
       />

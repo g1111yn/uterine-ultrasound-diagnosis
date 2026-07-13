@@ -419,6 +419,11 @@ describe('BatchDetail continuous diagnosis workflow', () => {
       'true',
     )
     expect(screen.getAllByText('等待推理完成')).toHaveLength(2)
+    expect(within(screen.getByRole('region', { name: '医生确认' }))
+      .getByRole('link', { name: '打开完整详情' })).toHaveAttribute(
+      'href',
+      '/case/case-wait-1',
+    )
     expect(screen.queryByRole('button', { name: '保存判断' })).not.toBeInTheDocument()
     expect(getCaseDetail).not.toHaveBeenCalled()
   })
