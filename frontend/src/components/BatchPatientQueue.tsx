@@ -15,10 +15,10 @@ export function matchesBatchPatientFilter(
   item: BatchResultItem,
   filter: BatchPatientFilter,
 ) {
-  if (filter === 'unjudged') return !!item.predicted_class && !item.has_judgment
-  if (filter === 'judged') return item.has_judgment
+  if (filter === 'all') return true
   if (filter === 'failed') return !!item.error
-  return true
+  if (filter === 'judged') return !item.error && item.has_judgment
+  return !item.error && !!item.predicted_class && !item.has_judgment
 }
 
 interface BatchPatientQueueProps {
@@ -56,18 +56,18 @@ function getPatientStatus(item: BatchResultItem): PatientStatus {
       Icon: AlertCircle,
     }
   }
-  if (!item.predicted_class) {
-    return {
-      label: '等待推理',
-      className: 'text-text-tertiary',
-      Icon: Clock3,
-    }
-  }
   if (item.has_judgment) {
     return {
       label: '已诊断',
       className: 'text-success-text',
       Icon: CheckCircle2,
+    }
+  }
+  if (!item.predicted_class) {
+    return {
+      label: '等待推理',
+      className: 'text-text-tertiary',
+      Icon: Clock3,
     }
   }
   return {
@@ -87,9 +87,11 @@ function PatientButton({
   onSelect: (caseId: string) => void
 }) {
   const status = getPatientStatus(item)
-  const colorClass = item.predicted_class
-    ? CLASS_COLORS[item.predicted_class] ?? 'border-border bg-bg-secondary text-text-primary'
-    : 'border-border bg-bg-secondary text-text-primary'
+  const colorClass = item.error
+    ? 'border-danger-border bg-danger-bg text-danger-text'
+    : item.predicted_class
+      ? CLASS_COLORS[item.predicted_class] ?? 'border-border bg-bg-secondary text-text-primary'
+      : 'border-border bg-bg-secondary text-text-primary'
   const confidence = item.confidence !== null
     ? `${(item.confidence * 100).toFixed(0)}%`
     : null
@@ -106,14 +108,16 @@ function PatientButton({
       onClick={() => {
         if (item.case_id !== null) onSelect(item.case_id)
       }}
-      className={`w-40 shrink-0 rounded-md border px-3 py-2 text-left transition-all lg:w-full ${
+      className={`w-48 min-w-48 max-w-48 shrink-0 rounded-md border px-3 py-2 text-left transition-all lg:w-full lg:min-w-0 lg:max-w-full ${
         selected
           ? `ring-2 ring-accent ring-offset-1 ${colorClass}`
           : `${colorClass} enabled:hover:opacity-80 disabled:cursor-default`
       }`}
     >
-      <span className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-xs font-medium">{item.patient_no}</span>
+      <span className="flex items-start justify-between gap-2">
+        <span className="min-w-0 flex-1 break-all font-mono text-xs font-medium leading-tight">
+          {item.patient_no}
+        </span>
         {confidence && (
           <span className="shrink-0 text-[10px] tabular-nums">{confidence}</span>
         )}
@@ -148,8 +152,9 @@ export default function BatchPatientQueue({
     ]),
   ) as Record<BatchPatientFilter, number>
   const visibleResults = results.filter((item) => matchesBatchPatientFilter(item, filter))
-  const judgedCount = results.filter((item) => item.has_judgment).length
-  const diagnosableCount = results.filter((item) => !!item.predicted_class).length
+  const diagnosableResults = results.filter((item) => !item.error && !!item.predicted_class)
+  const diagnosedCount = diagnosableResults.filter((item) => item.has_judgment).length
+  const diagnosableCount = diagnosableResults.length
 
   return (
     <section
@@ -176,7 +181,7 @@ export default function BatchPatientQueue({
           ))}
         </div>
         <div className="whitespace-nowrap text-[10px] tabular-nums text-text-secondary">
-          已诊断 {judgedCount} / 可诊断 {diagnosableCount}
+          已诊断 {diagnosedCount} / 可诊断 {diagnosableCount}
         </div>
       </div>
 

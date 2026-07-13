@@ -27,7 +27,7 @@ const results: BatchResultItem[] = [
   },
   {
     patient_no: 'P003',
-    case_id: null,
+    case_id: 'case-3',
     image_count: 1,
     predicted_class: null,
     predicted_class_zh: null,
@@ -37,7 +37,7 @@ const results: BatchResultItem[] = [
   },
   {
     patient_no: 'P004',
-    case_id: null,
+    case_id: 'case-4',
     image_count: 4,
     predicted_class: null,
     predicted_class_zh: null,
@@ -46,6 +46,34 @@ const results: BatchResultItem[] = [
     has_judgment: false,
   },
 ]
+
+const failedAndJudged: BatchResultItem = {
+  patient_no: 'P005',
+  case_id: 'case-5',
+  image_count: 2,
+  predicted_class: 'normal',
+  predicted_class_zh: '正常',
+  confidence: 0.83,
+  error: '模型结果无效',
+  has_judgment: true,
+}
+
+const judgedWithoutPrediction: BatchResultItem = {
+  patient_no: 'P006',
+  case_id: 'case-6',
+  image_count: 1,
+  predicted_class: null,
+  predicted_class_zh: null,
+  confidence: null,
+  error: null,
+  has_judgment: true,
+}
+
+const syntheticNullCase: BatchResultItem = {
+  ...results[3],
+  patient_no: 'P-SYNTHETIC-NULL',
+  case_id: null,
+}
 
 afterEach(cleanup)
 
@@ -63,6 +91,15 @@ describe('matchesBatchPatientFilter', () => {
     expect(matchesBatchPatientFilter(results[3], 'unjudged')).toBe(false)
     expect(matchesBatchPatientFilter(results[3], 'judged')).toBe(false)
     expect(matchesBatchPatientFilter(results[3], 'failed')).toBe(false)
+  })
+
+  it('uses failed precedence and keeps a judged waiting record in judged only', () => {
+    expect(matchesBatchPatientFilter(failedAndJudged, 'failed')).toBe(true)
+    expect(matchesBatchPatientFilter(failedAndJudged, 'judged')).toBe(false)
+    expect(matchesBatchPatientFilter(failedAndJudged, 'unjudged')).toBe(false)
+    expect(matchesBatchPatientFilter(judgedWithoutPrediction, 'judged')).toBe(true)
+    expect(matchesBatchPatientFilter(judgedWithoutPrediction, 'failed')).toBe(false)
+    expect(matchesBatchPatientFilter(judgedWithoutPrediction, 'unjudged')).toBe(false)
   })
 })
 
@@ -147,11 +184,68 @@ describe('BatchPatientQueue', () => {
     expect(unjudgedPatient).toHaveAttribute('aria-pressed', 'false')
     expect(judgedPatient).toHaveAttribute('aria-pressed', 'true')
     expect(failedPatient).toHaveAttribute('aria-pressed', 'false')
+    expect(failedPatient).toBeEnabled()
 
     await user.click(unjudgedPatient)
     await user.click(failedPatient)
 
-    expect(onSelect).toHaveBeenCalledTimes(1)
-    expect(onSelect).toHaveBeenCalledWith('case-1')
+    expect(onSelect).toHaveBeenNthCalledWith(1, 'case-1')
+    expect(onSelect).toHaveBeenNthCalledWith(2, 'case-3')
+  })
+
+  it('does not select an explicitly synthetic item without a case id', async () => {
+    const user = userEvent.setup()
+    const onSelect = vi.fn()
+
+    render(
+      <BatchPatientQueue
+        results={[syntheticNullCase]}
+        filter="all"
+        selectedCaseId={null}
+        onFilterChange={vi.fn()}
+        onSelect={onSelect}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /P-SYNTHETIC-NULL/ }))
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('keeps conflicting states exclusive and progress within successful predictions', () => {
+    render(
+      <BatchPatientQueue
+        results={[...results, failedAndJudged, judgedWithoutPrediction]}
+        filter="all"
+        selectedCaseId={null}
+        onFilterChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '全部 6' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '未诊断 1' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '已诊断 2' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '推理失败 2' })).toBeVisible()
+    expect(screen.getByText('已诊断 1 / 可诊断 2')).toBeVisible()
+    expect(screen.getByRole('button', { name: /患者 P005，推理失败/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /患者 P006，已诊断/ })).toBeVisible()
+  })
+
+  it('wraps a long patient number instead of truncating it', () => {
+    const longPatientNo = 'PATIENT-2026-VERY-LONG-IDENTIFIER-000001'
+
+    render(
+      <BatchPatientQueue
+        results={[{ ...results[0], patient_no: longPatientNo }]}
+        filter="all"
+        selectedCaseId={null}
+        onFilterChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    )
+
+    const patientNumber = screen.getByText(longPatientNo)
+    expect(patientNumber).toHaveClass('break-all')
+    expect(patientNumber).not.toHaveClass('truncate')
   })
 })
