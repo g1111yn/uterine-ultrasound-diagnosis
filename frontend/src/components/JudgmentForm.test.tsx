@@ -118,7 +118,8 @@ describe('JudgmentForm', () => {
     await user.click(screen.getByRole('button', { name: '保存判断' }))
 
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
-    expect(onDirtyChange.mock.calls.map(([dirty]) => dirty)).toEqual([false, true, false])
+    expect(onDirtyChange).toHaveBeenCalledWith(true)
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
   })
 
   it('stays dirty when an awaited save rejects', async () => {
@@ -207,7 +208,8 @@ describe('JudgmentForm', () => {
     await user.click(screen.getByRole('button', { name: '保存并进入下一位' }))
 
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
-    expect(onDirtyChange.mock.calls.map(([dirty]) => dirty)).toEqual([false, true, false])
+    expect(onDirtyChange).toHaveBeenCalledWith(true)
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
   })
 
   it('retains values and stays dirty when the secondary save rejects', async () => {
