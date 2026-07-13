@@ -381,7 +381,7 @@ describe('BatchDetail continuous diagnosis workflow', () => {
       'aria-pressed',
       'true',
     )
-    expect(getCaseDetail).toHaveBeenCalledWith('case-2')
+    await waitFor(() => expect(getCaseDetail).toHaveBeenCalledWith('case-2'))
   })
 
   it('falls back to all and selects the first real failed case when all patients failed', async () => {

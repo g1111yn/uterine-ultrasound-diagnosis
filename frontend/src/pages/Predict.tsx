@@ -93,9 +93,7 @@ export default function Predict() {
 
   const judgment = useMutation({
     mutationFn: (body: JudgmentRequest) => postJudgment(caseId!, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['case', caseId] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['case', caseId] }),
   })
 
   const handleSubmit = () => {
