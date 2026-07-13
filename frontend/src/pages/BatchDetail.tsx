@@ -1,21 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import { cancelBatch, getBatchStatus, getCaseDetail, getImageUrl } from '@/api/client'
+import { cancelBatch, getBatchStatus } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
-import ClassBadge from '@/components/ClassBadge'
-import ProbabilityBars from '@/components/ProbabilityBars'
-import { classFromLabel } from '@/lib/classification'
-import type { BatchJobStatus, BatchResultItem } from '@/lib/types'
+import type { BatchJobStatus } from '@/lib/types'
 import BatchNav from '@/components/BatchNav'
+import BatchPatientDiagnosis from '@/components/BatchPatientDiagnosis'
+import BatchPatientQueue, {
+  matchesBatchPatientFilter,
+  type BatchPatientFilter,
+} from '@/components/BatchPatientQueue'
+import ClinicalWorkbench from '@/components/ClinicalWorkbench'
 import WorkspaceContainer from '@/components/WorkspaceContainer'
-
-const CLASS_COLORS: Record<string, string> = {
-  normal: 'border-success-border bg-success-bg text-success-text',
-  endometrial_cancer: 'border-danger-border bg-danger-bg text-danger-text',
-  polyp: 'border-warning-border bg-warning-bg text-warning-text',
-}
 
 function SummaryBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const pct = total > 0 ? (count / total) * 100 : 0
@@ -35,139 +32,8 @@ function SummaryBar({ label, count, total, color }: { label: string; count: numb
   )
 }
 
-function PatientCard({
-  item,
-  isActive,
-  onClick,
-}: {
-  item: BatchResultItem
-  isActive: boolean
-  onClick: () => void
-}) {
-  const colorClass = item.predicted_class
-    ? CLASS_COLORS[item.predicted_class] ?? 'border-border bg-bg-secondary text-text-tertiary'
-    : 'border-border bg-bg-secondary text-text-tertiary'
-
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left rounded-md border px-3 py-2 transition-all ${
-        isActive
-          ? 'ring-2 ring-accent ring-offset-1 ' + colorClass
-          : colorClass + ' hover:opacity-80'
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-mono font-medium truncate">
-          {item.patient_no}
-        </span>
-        <span className="text-[10px] tabular-nums shrink-0">
-          {item.confidence !== null ? `${(item.confidence * 100).toFixed(0)}%` : '—'}
-        </span>
-      </div>
-      {item.predicted_class_zh && (
-        <div className="text-[10px] mt-0.5 font-medium">{item.predicted_class_zh}</div>
-      )}
-      {item.error && (
-        <div className="text-[10px] mt-0.5 text-danger-text">{item.error}</div>
-      )}
-    </button>
-  )
-}
-
-function PatientDetail({ caseId }: { caseId: string }) {
-  const navigate = useNavigate()
-  const { data, isLoading } = useQuery({
-    queryKey: ['case-detail', caseId],
-    queryFn: () => getCaseDetail(caseId),
-    enabled: !!caseId,
-  })
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
-      </div>
-    )
-  }
-  if (!data) return null
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm font-medium text-text-primary">
-            患者 {data.patient_no}
-          </div>
-          <div className="text-[11px] text-text-tertiary mt-0.5">
-            {formatDateTime(data.created_at)}
-          </div>
-        </div>
-        <button
-          onClick={() => navigate(`/case/${caseId}`)}
-          className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors"
-        >
-          打开完整详情
-        </button>
-      </div>
-
-      {data.clinical_text && (
-        <div className="rounded-md border border-border bg-bg-secondary px-3 py-2">
-          <div className="text-[10px] text-text-tertiary mb-1">检查所见</div>
-          <div className="text-xs text-text-primary leading-relaxed">
-            {data.clinical_text}
-          </div>
-        </div>
-      )}
-
-      {data.prediction && (
-        <div className="rounded-md border border-border bg-bg-secondary px-3 py-2.5">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-[10px] text-text-tertiary">患者级聚合预测</div>
-            <ClassBadge
-              type={classFromLabel(data.prediction.predicted_class_zh)}
-              label={data.prediction.predicted_class_zh}
-              confidence={data.prediction.confidence}
-            />
-          </div>
-          <ProbabilityBars probabilities={data.prediction.probabilities} />
-        </div>
-      )}
-
-      {data.images.length > 0 && (
-        <div>
-          <div className="text-[10px] text-text-tertiary mb-2">
-            逐图预测（{data.images.length} 张）
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {data.images.map((img) => (
-              <div key={img.image_id} className="rounded-md border border-border overflow-hidden bg-bg-secondary">
-                <img
-                  src={getImageUrl(img.image_id)}
-                  alt={img.original_filename}
-                  className="w-full h-32 object-cover"
-                  loading="lazy"
-                />
-                {img.per_image_prediction && (
-                  <div className="px-2 py-1.5 flex items-center justify-between">
-                    <ClassBadge
-                      type={classFromLabel(img.per_image_prediction.predicted_class_zh)}
-                      label={img.per_image_prediction.predicted_class_zh}
-                      showDot
-                    />
-                    <span className="text-[10px] tabular-nums text-text-secondary">
-                      {(img.per_image_prediction.confidence * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+const stablePanelClass =
+  'flex min-h-[420px] items-center justify-center rounded-md border border-border bg-bg-primary p-4'
 
 export function BatchCancelButton({ jobId, status }: { jobId: string; status: BatchJobStatus }) {
   const queryClient = useQueryClient()
@@ -211,7 +77,11 @@ export function BatchCancelButton({ jobId, status }: { jobId: string; status: Ba
 export default function BatchDetail() {
   const { jobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
+  const [filter, setFilter] = useState<BatchPatientFilter>('unjudged')
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
+  const [judgmentDirty, setJudgmentDirty] = useState(false)
+  const [diagnosisVersion, setDiagnosisVersion] = useState(0)
+  const [completionMessage, setCompletionMessage] = useState<string | null>(null)
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['batch-status', jobId],
@@ -222,6 +92,34 @@ export default function BatchDetail() {
       return s === 'running' || s === 'queued' ? 3000 : false
     },
   })
+
+  /* eslint-disable react-hooks/set-state-in-effect -- polling payloads initialize or repair selection. */
+  useEffect(() => {
+    if (!data) return
+
+    const selectionStillExists = selectedCaseId !== null && data.results.some(
+      (item) => item.case_id === selectedCaseId,
+    )
+    if (selectionStillExists) return
+
+    const firstUnjudged = data.results.find(
+      (item) => item.case_id !== null && matchesBatchPatientFilter(item, 'unjudged'),
+    )
+    if (firstUnjudged?.case_id) {
+      setFilter('unjudged')
+      setSelectedCaseId(firstUnjudged.case_id)
+      return
+    }
+
+    const firstSuccessful = data.results.find(
+      (item) => item.case_id !== null && !item.error && !!item.predicted_class,
+    )
+    if (firstSuccessful?.case_id) {
+      setFilter('all')
+      setSelectedCaseId(firstSuccessful.case_id)
+    }
+  }, [data, selectedCaseId])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (isError) {
     return (
@@ -260,7 +158,57 @@ export default function BatchDetail() {
   }
 
   const completedResults = data.results.filter((r) => r.predicted_class)
-  const selected = selectedCaseId ?? (completedResults[0]?.case_id || null)
+  const selectedItem = selectedCaseId
+    ? data.results.find((item) => item.case_id === selectedCaseId) ?? null
+    : null
+
+  const confirmDirtyTransition = () => (
+    !judgmentDirty || window.confirm('医生判断尚未保存，确定要切换患者吗？')
+  )
+  const selectPatient = (caseId: string) => {
+    if (caseId === selectedCaseId || !confirmDirtyTransition()) return
+    setJudgmentDirty(false)
+    setCompletionMessage(null)
+    setSelectedCaseId(caseId)
+  }
+  const changeFilter = (nextFilter: BatchPatientFilter) => {
+    if (nextFilter === filter || !confirmDirtyTransition()) return
+    if (judgmentDirty) {
+      setJudgmentDirty(false)
+      setDiagnosisVersion((version) => version + 1)
+    }
+    setCompletionMessage(null)
+    setFilter(nextFilter)
+  }
+  const saveAndSelectNext = (caseId: string) => {
+    const currentIndex = data.results.findIndex((item) => item.case_id === caseId)
+    const count = data.results.length
+    for (let offset = 1; offset < count; offset += 1) {
+      const index = (currentIndex + offset + count) % count
+      const candidate = data.results[index]
+      if (
+        candidate.case_id !== null &&
+        candidate.case_id !== caseId &&
+        matchesBatchPatientFilter(candidate, 'unjudged')
+      ) {
+        setCompletionMessage(null)
+        setFilter('unjudged')
+        setSelectedCaseId(candidate.case_id)
+        return
+      }
+    }
+    setCompletionMessage('本批次已全部诊断')
+  }
+
+  const queue = (
+    <BatchPatientQueue
+      results={data.results}
+      filter={filter}
+      selectedCaseId={selectedCaseId}
+      onFilterChange={changeFilter}
+      onSelect={selectPatient}
+    />
+  )
 
   const isRunning = data.status === 'running' || data.status === 'queued'
   const isDone = data.status === 'completed'
@@ -273,6 +221,96 @@ export default function BatchDetail() {
   const polypCount = completedResults.filter((r) => r.predicted_class === 'polyp').length
   const cancerCount = completedResults.filter((r) => r.predicted_class === 'endometrial_cancer').length
   const totalCompleted = completedResults.length
+  const hasAnotherUnjudged = data.results.some(
+    (item) => item.case_id !== selectedCaseId && matchesBatchPatientFilter(item, 'unjudged'),
+  )
+  const visibleCompletionMessage = hasAnotherUnjudged ? null : completionMessage
+
+  let workbench
+  if (selectedItem?.case_id && selectedItem.error) {
+    const fullDetailLink = (
+      <Link
+        to={`/case/${selectedItem.case_id}`}
+        className="text-[11px] font-medium text-accent transition-colors hover:text-accent-hover"
+      >
+        打开完整详情
+      </Link>
+    )
+    workbench = (
+      <ClinicalWorkbench
+        left={queue}
+        center={(
+          <div className={`${stablePanelClass} flex-col gap-3 text-center`}>
+            <div className="text-xs font-medium text-text-primary">
+              患者 {selectedItem.patient_no} 的影像未完成推理
+            </div>
+            <div className="text-[11px] text-text-tertiary">
+              修正源文件后请重新提交批量任务
+            </div>
+          </div>
+        )}
+        right={(
+          <div className={`${stablePanelClass} flex-col items-stretch gap-4`}>
+            <div role="alert" className="rounded-md border border-danger-border bg-danger-bg p-4">
+              <div className="text-xs font-medium text-danger-text">
+                患者 {selectedItem.patient_no} 推理失败
+              </div>
+              <div className="mt-2 break-words text-xs leading-relaxed text-danger-text">
+                {selectedItem.error}
+              </div>
+            </div>
+            <div className="flex justify-end">{fullDetailLink}</div>
+          </div>
+        )}
+      />
+    )
+  } else if (selectedItem?.case_id) {
+    workbench = (
+      <BatchPatientDiagnosis
+        key={`${selectedItem.case_id}:${diagnosisVersion}`}
+        caseId={selectedItem.case_id}
+        jobId={data.job_id}
+        onDirtyChange={setJudgmentDirty}
+        onSavedAndNext={saveAndSelectNext}
+      >
+        {({ center, right }) => (
+          <ClinicalWorkbench
+            left={queue}
+            center={center}
+            right={(
+              <div className="space-y-3">
+                <div className="flex justify-end">
+                  <Link
+                    to={`/case/${selectedItem.case_id}`}
+                    className="text-[11px] font-medium text-accent transition-colors hover:text-accent-hover"
+                  >
+                    打开完整详情
+                  </Link>
+                </div>
+                {right}
+              </div>
+            )}
+          />
+        )}
+      </BatchPatientDiagnosis>
+    )
+  } else {
+    workbench = (
+      <ClinicalWorkbench
+        left={queue}
+        center={(
+          <div className={`${stablePanelClass} text-xs text-text-tertiary`}>
+            请从患者队列中选择病例
+          </div>
+        )}
+        right={(
+          <div className={`${stablePanelClass} text-xs text-text-tertiary`}>
+            选择病例后可查看 AI 建议并提交医生判断
+          </div>
+        )}
+      />
+    )
+  }
 
   return (
     <WorkspaceContainer>
@@ -368,34 +406,17 @@ export default function BatchDetail() {
         </div>
       )}
 
-      {/* 主体：左侧病人列表 + 右侧详情 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-        {/* 左侧病人列表 */}
-        <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-1.5 max-h-[calc(100vh-160px)] overflow-y-auto lg:sticky lg:top-4 self-start">
-          <div className="text-[10px] text-text-tertiary font-medium mb-2 uppercase tracking-wider">
-            病人列表（{data.results.length}）
-          </div>
-          {data.results.map((item) => (
-            <PatientCard
-              key={item.case_id ?? item.patient_no}
-              item={item}
-              isActive={item.case_id === selected}
-              onClick={() => item.case_id && setSelectedCaseId(item.case_id)}
-            />
-          ))}
+      {visibleCompletionMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 rounded-md border border-success-border bg-success-bg p-3 text-xs text-success-text"
+        >
+          {visibleCompletionMessage}
         </div>
+      )}
 
-        {/* 右侧详情 */}
-        <div className="rounded-lg border border-border bg-bg-primary p-5 min-h-[400px]">
-          {selected ? (
-            <PatientDetail caseId={selected} />
-          ) : (
-            <div className="flex items-center justify-center h-64 text-xs text-text-tertiary">
-              点击左侧病人查看详情
-            </div>
-          )}
-        </div>
-      </div>
+      {workbench}
     </WorkspaceContainer>
   )
 }
