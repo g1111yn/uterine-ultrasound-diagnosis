@@ -100,6 +100,27 @@ describe('JudgmentForm', () => {
     expect(savedEvent.defaultPrevented).toBe(false)
   })
 
+  it('reports dirty false after a primary save succeeds', async () => {
+    const user = userEvent.setup()
+    const onDirtyChange = vi.fn()
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        onDirtyChange={onDirtyChange}
+      />,
+    )
+
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+    await user.type(screen.getByRole('textbox', { name: '备注' }), '已编辑')
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
+
+    await user.click(screen.getByRole('button', { name: '保存判断' }))
+
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+    expect(onDirtyChange.mock.calls.map(([dirty]) => dirty)).toEqual([false, true, false])
+  })
+
   it('stays dirty when an awaited save rejects', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('保存失败'))
@@ -138,6 +159,32 @@ describe('JudgmentForm', () => {
       note: '建议取样',
     })
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('does not render the secondary action when only its label is provided', () => {
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        secondarySubmitLabel="保存并进入下一位"
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: '保存并进入下一位' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+  })
+
+  it('does not render the secondary action when only its handler is provided', () => {
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        onSecondarySubmit={async () => undefined}
+      />,
+    )
+
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: '保存判断' })).toBeVisible()
   })
 
   it('reports dirty true then false after a secondary save succeeds', async () => {
