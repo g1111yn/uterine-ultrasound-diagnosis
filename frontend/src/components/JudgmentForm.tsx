@@ -157,7 +157,7 @@ export default function JudgmentForm({
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="submit"
           disabled={loading || submitting || finalClass === null}
@@ -182,7 +182,7 @@ export default function JudgmentForm({
             href={reportUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3.5 py-2 text-xs font-medium text-text-primary transition-colors hover:bg-bg-tertiary"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border-secondary bg-bg-primary px-3.5 py-2 text-xs font-medium text-text-primary transition-colors hover:bg-bg-tertiary ${secondarySubmitLabel && onSecondarySubmit ? 'col-span-2' : ''}`}
           >
             <Download className="h-3.5 w-3.5" />
             导出 PDF 报告

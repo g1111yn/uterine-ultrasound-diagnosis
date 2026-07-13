@@ -136,6 +136,66 @@ describe('JudgmentForm', () => {
     expect(rejectedEvent.defaultPrevented).toBe(true)
   })
 
+  it('places both save actions above a full-width report action', () => {
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        secondarySubmitLabel="保存并下一位"
+        onSecondarySubmit={async () => undefined}
+        reportUrl="/reports/case-1"
+      />,
+    )
+
+    const primaryAction = screen.getByRole('button', { name: '保存判断' })
+    const secondaryAction = screen.getByRole('button', { name: '保存并下一位' })
+    const reportAction = screen.getByRole('link', { name: '导出 PDF 报告' })
+    const actions = primaryAction.parentElement
+
+    expect(actions).toHaveClass('grid', 'grid-cols-2')
+    expect(secondaryAction.parentElement).toBe(actions)
+    expect(reportAction.parentElement).toBe(actions)
+    expect(reportAction).toHaveClass('col-span-2')
+  })
+
+  it('keeps primary save and report actions in one two-column row', () => {
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        reportUrl="/reports/case-1"
+      />,
+    )
+
+    const primaryAction = screen.getByRole('button', { name: '保存判断' })
+    const reportAction = screen.getByRole('link', { name: '导出 PDF 报告' })
+    const actions = primaryAction.parentElement
+
+    expect(actions).toHaveClass('grid', 'grid-cols-2')
+    expect(reportAction.parentElement).toBe(actions)
+    expect(reportAction).not.toHaveClass('col-span-2')
+  })
+
+  it('keeps primary and secondary save actions in one two-column row without a report', () => {
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        secondarySubmitLabel="保存并下一位"
+        onSecondarySubmit={async () => undefined}
+      />,
+    )
+
+    const primaryAction = screen.getByRole('button', { name: '保存判断' })
+    const secondaryAction = screen.getByRole('button', { name: '保存并下一位' })
+    const actions = primaryAction.parentElement
+
+    expect(actions).toHaveClass('grid', 'grid-cols-2')
+    expect(secondaryAction.parentElement).toBe(actions)
+    expect(primaryAction).not.toHaveClass('col-span-2')
+    expect(secondaryAction).not.toHaveClass('col-span-2')
+  })
+
   it('submits the current judgment only through the secondary action', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
