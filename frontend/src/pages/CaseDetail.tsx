@@ -125,8 +125,8 @@ export default function CaseDetail() {
         }
         center={<ImageReviewPanel images={data.images} />}
         right={
-          <div className="space-y-4">
-            {pred ? (
+          pred ? (
+            <div className="space-y-4">
               <AiSuggestionPanel
                 predictedClass={pred.predicted_class}
                 predictedClassZh={pred.predicted_class_zh}
@@ -134,42 +134,50 @@ export default function CaseDetail() {
                 probabilities={pred.probabilities}
                 detail={`聚合策略 ${pred.aggregation_strategy} · ${pred.image_count} 张 · ${pred.model_version}`}
               />
-            ) : (
-              <div className="rounded-md border border-border bg-bg-primary p-4 text-xs text-text-tertiary">
-                暂无 AI 辅助建议
-              </div>
-            )}
 
-            <div className="rounded-md border border-border bg-bg-primary p-4">
-              {data.judgment && (
-                <div className="mb-3 border-b border-border pb-3 text-[11px] text-text-tertiary">
-                  已保存判断 · 医生 {data.judgment.doctor_id} ·{' '}
-                  <span className="tabular-nums">
-                    {formatDateTime(data.judgment.judged_at)}
-                  </span>
-                </div>
-              )}
-              <JudgmentForm
-                key={`${data.case_id}-${data.judgment?.judged_at ?? 'new'}`}
-                initialClass={data.judgment?.final_class ?? null}
-                initialRecommendation={data.judgment?.recommendation ?? ''}
-                initialNote={data.judgment?.note ?? ''}
-                onSubmit={(body) => judgment.mutateAsync(body)}
-                loading={judgment.isPending}
-                reportUrl={getReportUrl(data.case_id)}
-              />
-              {judgment.isSuccess && (
-                <div className="mt-3 rounded-md border border-info-border bg-info-bg p-2.5 text-xs text-info-text">
-                  判断已更新
-                </div>
-              )}
-              {judgment.isError && (
-                <div className="mt-3 rounded-md border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text">
-                  {judgment.error.message}
-                </div>
-              )}
+              <div className="rounded-md border border-border bg-bg-primary p-4">
+                {data.judgment && (
+                  <div className="mb-3 border-b border-border pb-3 text-[11px] text-text-tertiary">
+                    已保存判断 · 医生 {data.judgment.doctor_id} ·{' '}
+                    <span className="tabular-nums">
+                      {formatDateTime(data.judgment.judged_at)}
+                    </span>
+                  </div>
+                )}
+                <JudgmentForm
+                  key={`${data.case_id}-${data.judgment?.judged_at ?? 'new'}`}
+                  initialClass={data.judgment?.final_class ?? null}
+                  initialRecommendation={data.judgment?.recommendation ?? ''}
+                  initialNote={data.judgment?.note ?? ''}
+                  onSubmit={(body) => judgment.mutateAsync(body)}
+                  loading={judgment.isPending}
+                  reportUrl={getReportUrl(data.case_id)}
+                />
+                {judgment.isSuccess && (
+                  <div className="mt-3 rounded-md border border-info-border bg-info-bg p-2.5 text-xs text-info-text">
+                    判断已更新
+                  </div>
+                )}
+                {judgment.isError && (
+                  <div className="mt-3 rounded-md border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text">
+                    {judgment.error.message}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div
+              role="status"
+              className="flex min-h-[420px] flex-col items-center justify-center gap-2 rounded-md border border-border bg-bg-primary p-4 text-center"
+            >
+              <div className="text-xs font-medium text-text-primary">
+                病例尚未完成推理，暂不能提交医生判断
+              </div>
+              <div className="text-[11px] text-text-tertiary">
+                请等待 AI 结果完成，或检查推理失败原因
+              </div>
+            </div>
+          )
         }
       />
     </WorkspaceContainer>

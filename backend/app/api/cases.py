@@ -272,6 +272,16 @@ async def submit_judgment(
     case = db.query(Case).filter(Case.case_id == case_id).first()
     if not case:
         return _not_found(f"Case {case_id} not found.")
+    if case.prediction is None:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": {
+                    "code": "PREDICTION_REQUIRED",
+                    "message": "病例尚未完成推理，暂不能提交医生判断。",
+                }
+            },
+        )
 
     if body.final_class not in VALID_JUDGMENT_CLASSES:
         return JSONResponse(

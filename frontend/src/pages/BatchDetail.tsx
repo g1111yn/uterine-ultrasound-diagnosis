@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -84,6 +84,11 @@ export default function BatchDetail() {
   const [judgmentDirty, setJudgmentDirty] = useState(false)
   const [diagnosisVersion, setDiagnosisVersion] = useState(0)
   const [completionMessage, setCompletionMessage] = useState<string | null>(null)
+  const selectedJudgmentStateRef = useRef<{
+    caseId: string | null
+    hasJudgment: boolean | null
+  }>({ caseId: null, hasJudgment: null })
+  const pendingJudgmentSyncRef = useRef<string | null>(null)
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['batch-status', jobId],
@@ -126,6 +131,37 @@ export default function BatchDetail() {
     setSelectedCaseId(firstSuccessful?.case_id ?? firstFailed?.case_id ?? null)
   }, [data, intentionallyClearedForJob, selectedCaseId])
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    const selectedResult = data?.results.find((item) => item.case_id === selectedCaseId)
+    const nextState = {
+      caseId: selectedCaseId,
+      hasJudgment: selectedResult?.has_judgment ?? null,
+    }
+    const previousState = selectedJudgmentStateRef.current
+
+    if (previousState.caseId !== selectedCaseId) {
+      selectedJudgmentStateRef.current = nextState
+      pendingJudgmentSyncRef.current = null
+      return
+    }
+
+    const judgmentChanged = (
+      selectedCaseId !== null &&
+      previousState.hasJudgment !== null &&
+      nextState.hasJudgment !== null &&
+      previousState.hasJudgment !== nextState.hasJudgment
+    )
+    selectedJudgmentStateRef.current = nextState
+
+    if (judgmentChanged) {
+      pendingJudgmentSyncRef.current = selectedCaseId
+    }
+    if (!judgmentDirty && pendingJudgmentSyncRef.current === selectedCaseId) {
+      pendingJudgmentSyncRef.current = null
+      void queryClient.invalidateQueries({ queryKey: ['case', selectedCaseId] })
+    }
+  }, [data, judgmentDirty, queryClient, selectedCaseId])
 
   if (isError) {
     return (
@@ -228,7 +264,15 @@ export default function BatchDetail() {
       setSelectedCaseId(nextPatient.case_id)
       return
     }
-    setCompletionMessage('本批次已全部诊断')
+    const batchIsTerminal = latestBatch.status !== 'running' && latestBatch.status !== 'queued'
+    const hasPendingPrediction = latestBatch.results.some(
+      (item) => !item.predicted_class && !item.error,
+    )
+    setCompletionMessage(
+      batchIsTerminal && !hasPendingPrediction
+        ? '本批次已全部诊断'
+        : '当前已完成患者均已诊断，等待其余患者推理完成',
+    )
   }
 
   const queue = (

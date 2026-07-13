@@ -162,6 +162,20 @@ const judgmentResponse: JudgmentResponse = {
   },
 }
 
+function makeExternallyJudgedDetail(): CaseDetail {
+  return {
+    ...makeCaseDetail('case-1'),
+    judgment: {
+      final_class: 'polyp',
+      final_class_zh: '息肉',
+      recommendation: 'followup',
+      note: '外部医生已完成判断',
+      doctor_id: 'doctor-external',
+      judged_at: '2026-07-13T10:00:00Z',
+    },
+  }
+}
+
 function renderPage(
   status: BatchStatusResponse = makeBatchStatus(),
   queryClient = new QueryClient({
@@ -693,10 +707,32 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     expect(screen.queryByText('本批次已全部诊断')).not.toBeInTheDocument()
   })
 
-  it('stays on the last patient and announces batch completion', async () => {
+  it('stays on the last eligible patient while the running batch still has pending predictions', async () => {
     const user = userEvent.setup()
     vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
-    renderPage(makeBatchStatus({ results: [results[1], results[2]] }))
+    renderPage(makeBatchStatus({ results: [results[0], results[1], results[2]] }))
+
+    await user.click(await screen.findByRole('radio', { name: '正常' }))
+    await user.click(screen.getByRole('button', { name: '保存并下一位' }))
+
+    expect((await screen.findByText('当前已完成患者均已诊断，等待其余患者推理完成')).closest('[role="status"]'))
+      .toBeInTheDocument()
+    expect(screen.queryByText('本批次已全部诊断')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /患者 P001/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('stays on the last patient and announces batch completion for a terminal batch', async () => {
+    const user = userEvent.setup()
+    vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
+    renderPage(makeBatchStatus({
+      status: 'completed',
+      total_patients: 2,
+      completed_patients: 2,
+      results: [results[1], results[2]],
+    }))
 
     await user.click(await screen.findByRole('radio', { name: '正常' }))
     await user.click(screen.getByRole('button', { name: '保存并下一位' }))
@@ -751,6 +787,57 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     )
     expect(screen.getByRole('textbox', { name: '备注' })).toHaveValue('轮询期间保留')
     expect(getCaseDetail).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes a clean selected case when polling reports an external judgment', async () => {
+    const initial = makeBatchStatus()
+    const polled = makeBatchStatus({
+      results: results.map((item) => (
+        item.case_id === 'case-1' ? { ...item, has_judgment: true } : item
+      )),
+    })
+    const { queryClient } = renderPage(initial)
+    await screen.findByRole('textbox', { name: '备注' })
+    expect(getCaseDetail).toHaveBeenCalledTimes(1)
+    vi.mocked(getCaseDetail).mockResolvedValue(makeExternallyJudgedDetail())
+
+    act(() => queryClient.setQueryData(['batch-status', 'job-1'], polled))
+
+    await waitFor(() => expect(getCaseDetail).toHaveBeenCalledTimes(2))
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: '备注' }))
+        .toHaveValue('外部医生已完成判断')
+    })
+    expect(screen.getByRole('radio', { name: '息肉' })).toBeChecked()
+  })
+
+  it('defers external judgment refresh while dirty and applies it once the form is clean', async () => {
+    const user = userEvent.setup()
+    const initial = makeBatchStatus()
+    const polled = makeBatchStatus({
+      results: results.map((item) => (
+        item.case_id === 'case-1' ? { ...item, has_judgment: true } : item
+      )),
+    })
+    const { queryClient } = renderPage(initial)
+    const note = await screen.findByRole('textbox', { name: '备注' })
+    await user.type(note, '本地未保存编辑')
+    vi.mocked(getCaseDetail).mockResolvedValue(makeExternallyJudgedDetail())
+
+    act(() => queryClient.setQueryData(['batch-status', 'job-1'], polled))
+    await waitFor(() => {
+      expect(screen.getByRole('status', { name: '批量诊断进度' }))
+        .toHaveTextContent('已诊断 2 / 可诊断 3')
+    })
+
+    expect(getCaseDetail).toHaveBeenCalledTimes(1)
+    expect(note).toHaveValue('本地未保存编辑')
+
+    await user.clear(note)
+
+    await waitFor(() => expect(getCaseDetail).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('textbox', { name: '备注' }))
+      .toHaveValue('外部医生已完成判断')
   })
 
   it('supports all four queue filters while a job is running', async () => {

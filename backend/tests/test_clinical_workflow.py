@@ -1,4 +1,5 @@
 import asyncio
+import json
 import tempfile
 import threading
 import time
@@ -9,6 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -59,6 +61,19 @@ class ClinicalWorkflowTests(unittest.TestCase):
     def _request():
         return Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1)})
 
+    @staticmethod
+    def _prediction(case_id: str):
+        return Prediction(
+            case_id=case_id,
+            prob_normal=0.8,
+            prob_cancer=0.1,
+            prob_polyp=0.1,
+            predicted_class="normal",
+            confidence=0.8,
+            image_count=1,
+            model_version="test",
+        )
+
     def test_indeterminate_is_valid_physician_judgment_only(self):
         self.assertIn("indeterminate", VALID_JUDGMENT_CLASSES)
         self.assertEqual(JUDGMENT_CLASS_ZH["endometrial_cancer"], "疑似子宫内膜癌")
@@ -66,6 +81,33 @@ class ClinicalWorkflowTests(unittest.TestCase):
 
     def test_model_classes_do_not_include_indeterminate(self):
         self.assertNotIn("indeterminate", CLASS_ZH)
+
+    def test_judgment_requires_a_completed_prediction(self):
+        case = Case(
+            case_id="case-prediction-required",
+            patient_no="p-pending",
+            clinical_text="",
+            doctor_id=self.user.user_id,
+        )
+        self.db.add(case)
+        self.db.commit()
+
+        with patch("app.api.cases.audit.log_event") as log_event:
+            response = asyncio.run(submit_judgment(
+                case.case_id,
+                JudgmentIn(final_class="normal"),
+                self._request(),
+                self.db,
+                self.user,
+            ))
+
+        self.assertIsInstance(response, JSONResponse)
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(json.loads(response.body)["error"]["code"], "PREDICTION_REQUIRED")
+        self.assertIsNone(
+            self.db.query(Judgment).filter(Judgment.case_id == case.case_id).first()
+        )
+        log_event.assert_not_called()
 
     def test_empty_patient_work_has_actionable_error(self):
         code, message = _batch_without_work_error([])
@@ -83,7 +125,7 @@ class ClinicalWorkflowTests(unittest.TestCase):
             doctor_id="doctor-1",
             judged_at=old_time,
         )
-        self.db.add_all([case, existing])
+        self.db.add_all([case, self._prediction(case.case_id), existing])
         self.db.commit()
 
         with patch("app.api.cases.audit.log_event") as log_event:
@@ -110,7 +152,7 @@ class ClinicalWorkflowTests(unittest.TestCase):
 
     def test_new_judgment_audit_has_null_before(self):
         case = Case(case_id="case-2", patient_no="p-2", clinical_text="", doctor_id=self.user.user_id)
-        self.db.add(case)
+        self.db.add_all([case, self._prediction(case.case_id)])
         self.db.commit()
 
         with patch("app.api.cases.audit.log_event") as log_event:
@@ -128,7 +170,7 @@ class ClinicalWorkflowTests(unittest.TestCase):
 
     def test_judgment_accepts_an_omitted_optional_recommendation(self):
         case = Case(case_id="case-no-recommendation", patient_no="p-optional", clinical_text="", doctor_id=self.user.user_id)
-        self.db.add(case)
+        self.db.add_all([case, self._prediction(case.case_id)])
         self.db.commit()
 
         with patch("app.api.cases.audit.log_event"):
@@ -146,7 +188,7 @@ class ClinicalWorkflowTests(unittest.TestCase):
 
     def test_judgment_accepts_a_null_optional_recommendation(self):
         case = Case(case_id="case-null-recommendation", patient_no="p-null", clinical_text="", doctor_id=self.user.user_id)
-        self.db.add(case)
+        self.db.add_all([case, self._prediction(case.case_id)])
         self.db.commit()
 
         with patch("app.api.cases.audit.log_event"):
