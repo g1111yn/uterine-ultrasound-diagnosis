@@ -1,6 +1,7 @@
 """Batch inference API (V2)."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
@@ -21,6 +22,14 @@ from app.services.batch_pipeline import BatchError, cancel_batch, submit_batch
 router = APIRouter()
 
 BatchPublicStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _public_status(status: str) -> str:
@@ -130,7 +139,7 @@ async def get_batch_status(
 
     # All patients for this batch (no limit — batch detail page needs full list).
     rows = (
-        db.query(Case, Prediction, Judgment.id)
+        db.query(Case, Prediction, Judgment.judged_at)
         .outerjoin(Prediction, Case.case_id == Prediction.case_id)
         .outerjoin(Judgment, Case.case_id == Judgment.case_id)
         .filter(Case.batch_job_id == job_id)
@@ -138,7 +147,7 @@ async def get_batch_status(
         .all()
     )
     results = []
-    for case, pred, judgment_id in rows:
+    for case, pred, judgment_updated_at in rows:
         if pred:
             results.append(BatchResultItem(
                 case_id=case.case_id,
@@ -147,7 +156,8 @@ async def get_batch_status(
                 predicted_class_zh=CLASS_ZH.get(pred.predicted_class, pred.predicted_class),
                 confidence=pred.confidence,
                 image_count=pred.image_count,
-                has_judgment=judgment_id is not None,
+                has_judgment=judgment_updated_at is not None,
+                judgment_updated_at=_as_utc(judgment_updated_at),
             ))
         else:
             results.append(BatchResultItem(
@@ -155,7 +165,8 @@ async def get_batch_status(
                 patient_no=case.patient_no,
                 image_count=0,
                 error=case.batch_error or None,
-                has_judgment=judgment_id is not None,
+                has_judgment=judgment_updated_at is not None,
+                judgment_updated_at=_as_utc(judgment_updated_at),
             ))
 
     # Rough ETA: remaining images * moving-average per-image latency.

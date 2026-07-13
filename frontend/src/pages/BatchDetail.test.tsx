@@ -17,6 +17,7 @@ import type {
   CaseDetail,
   JudgmentResponse,
 } from '@/lib/types'
+import { getBatchStatusPollingInterval } from '@/lib/batchDiagnosis'
 import BatchDetail, { BatchCancelButton } from './BatchDetail'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -46,6 +47,7 @@ const results: BatchResultItem[] = [
     confidence: null,
     error: null,
     has_judgment: false,
+    judgment_updated_at: null,
   },
   {
     patient_no: 'P001',
@@ -56,6 +58,7 @@ const results: BatchResultItem[] = [
     confidence: 0.91,
     error: null,
     has_judgment: false,
+    judgment_updated_at: null,
   },
   {
     patient_no: 'P002',
@@ -66,6 +69,7 @@ const results: BatchResultItem[] = [
     confidence: 0.83,
     error: null,
     has_judgment: true,
+    judgment_updated_at: '2026-07-12T09:00:00Z',
   },
   {
     patient_no: 'P003',
@@ -76,6 +80,7 @@ const results: BatchResultItem[] = [
     confidence: 0.74,
     error: null,
     has_judgment: false,
+    judgment_updated_at: null,
   },
   {
     patient_no: 'P004',
@@ -86,6 +91,7 @@ const results: BatchResultItem[] = [
     confidence: null,
     error: '原始 DICOM 文件损坏，无法完成推理',
     has_judgment: false,
+    judgment_updated_at: null,
   },
 ]
 
@@ -319,6 +325,13 @@ describe('BatchDetail request errors', () => {
 })
 
 describe('BatchDetail continuous diagnosis workflow', () => {
+  it('polls active batches every 3 seconds and terminal batches every 10 seconds', () => {
+    expect(getBatchStatusPollingInterval('running')).toBe(3000)
+    expect(getBatchStatusPollingInterval('queued')).toBe(3000)
+    expect(getBatchStatusPollingInterval('completed')).toBe(10000)
+    expect(getBatchStatusPollingInterval('failed')).toBe(10000)
+    expect(getBatchStatusPollingInterval('cancelled')).toBe(10000)
+  })
   it('shows independent diagnosis progress in the top header with failure-first counts', async () => {
     const failedPrediction: BatchResultItem = {
       ...results[1],
@@ -635,6 +648,37 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     expect(screen.getByRole('button', { name: '保存并下一位' })).toBeVisible()
   })
 
+  it('announces completion after the primary save diagnoses the final terminal patient', async () => {
+    const user = userEvent.setup()
+    const initial = makeBatchStatus({
+      status: 'completed',
+      total_patients: 1,
+      completed_patients: 1,
+      results: [results[1]],
+    })
+    const refreshed = makeBatchStatus({
+      ...initial,
+      results: [{
+        ...results[1],
+        has_judgment: true,
+        judgment_updated_at: judgmentResponse.judgment.judged_at,
+      }],
+    })
+    vi.mocked(getBatchStatus).mockResolvedValue(refreshed)
+    vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
+    renderPage(initial)
+
+    await user.click(await screen.findByRole('radio', { name: '正常' }))
+    await user.click(screen.getByRole('button', { name: '保存判断' }))
+
+    expect((await screen.findByText('本批次已全部诊断')).closest('[role="status"]'))
+      .toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /患者 P001/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
   it('moves the secondary save to the next eligible unjudged patient', async () => {
     const user = userEvent.setup()
     vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
@@ -770,6 +814,24 @@ describe('BatchDetail continuous diagnosis workflow', () => {
     )
   })
 
+  it('does not claim full diagnosis when terminal results include a real inference failure', async () => {
+    const user = userEvent.setup()
+    vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
+    renderPage(makeBatchStatus({
+      status: 'completed',
+      total_patients: 2,
+      completed_patients: 2,
+      results: [results[1], results[4]],
+    }))
+
+    await user.click(await screen.findByRole('radio', { name: '正常' }))
+    await user.click(screen.getByRole('button', { name: '保存并下一位' }))
+
+    expect((await screen.findByText('当前可诊断患者均已完成，仍有患者推理失败')).closest('[role="status"]'))
+      .toBeInTheDocument()
+    expect(screen.queryByText('本批次已全部诊断')).not.toBeInTheDocument()
+  })
+
   it('preserves the selected patient and dirty form when polling adds completed patients', async () => {
     const user = userEvent.setup()
     const initial = makeBatchStatus()
@@ -834,6 +896,37 @@ describe('BatchDetail continuous diagnosis workflow', () => {
         .toHaveValue('外部医生已完成判断')
     })
     expect(screen.getByRole('radio', { name: '息肉' })).toBeChecked()
+  })
+
+  it('refreshes a clean selected case when an existing judgment is externally revised', async () => {
+    const initial = makeBatchStatus({
+      status: 'completed',
+      results: [{
+        ...results[2],
+        case_id: 'case-1',
+        patient_no: 'P001',
+        judgment_updated_at: '2026-07-12T09:00:00Z',
+      }],
+    })
+    const polled = makeBatchStatus({
+      ...initial,
+      results: [{
+        ...initial.results[0],
+        judgment_updated_at: '2026-07-13T10:00:00Z',
+      }],
+    })
+    const { queryClient } = renderPage(initial)
+    await screen.findByRole('textbox', { name: '备注' })
+    expect(getCaseDetail).toHaveBeenCalledTimes(1)
+    vi.mocked(getCaseDetail).mockResolvedValue(makeExternallyJudgedDetail())
+
+    act(() => queryClient.setQueryData(['batch-status', 'job-1'], polled))
+
+    await waitFor(() => expect(getCaseDetail).toHaveBeenCalledTimes(2))
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: '备注' }))
+        .toHaveValue('外部医生已完成判断')
+    })
   })
 
   it('defers external judgment refresh while dirty and applies it once the form is clean', async () => {

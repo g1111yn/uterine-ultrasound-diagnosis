@@ -3,6 +3,10 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { cancelBatch, getBatchStatus } from '@/api/client'
+import {
+  getBatchCompletionMessage,
+  getBatchStatusPollingInterval,
+} from '@/lib/batchDiagnosis'
 import { formatDateTime } from '@/lib/utils'
 import type { BatchJobStatus, BatchStatusResponse } from '@/lib/types'
 import BatchNav from '@/components/BatchNav'
@@ -87,7 +91,8 @@ export default function BatchDetail() {
   const selectedJudgmentStateRef = useRef<{
     caseId: string | null
     hasJudgment: boolean | null
-  }>({ caseId: null, hasJudgment: null })
+    judgmentUpdatedAt: string | null
+  }>({ caseId: null, hasJudgment: null, judgmentUpdatedAt: null })
   const pendingJudgmentSyncRef = useRef<string | null>(null)
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -95,8 +100,7 @@ export default function BatchDetail() {
     queryFn: () => getBatchStatus(jobId!),
     enabled: !!jobId,
     refetchInterval: (query) => {
-      const s = query.state.data?.status
-      return s === 'running' || s === 'queued' ? 3000 : false
+      return getBatchStatusPollingInterval(query.state.data?.status)
     },
   })
 
@@ -137,6 +141,7 @@ export default function BatchDetail() {
     const nextState = {
       caseId: selectedCaseId,
       hasJudgment: selectedResult?.has_judgment ?? null,
+      judgmentUpdatedAt: selectedResult?.judgment_updated_at ?? null,
     }
     const previousState = selectedJudgmentStateRef.current
 
@@ -146,11 +151,13 @@ export default function BatchDetail() {
       return
     }
 
-    const judgmentChanged = (
-      selectedCaseId !== null &&
-      previousState.hasJudgment !== null &&
-      nextState.hasJudgment !== null &&
-      previousState.hasJudgment !== nextState.hasJudgment
+    const judgmentChanged = selectedCaseId !== null && (
+      (previousState.hasJudgment === false && nextState.hasJudgment === true) ||
+      (
+        previousState.hasJudgment === true &&
+        nextState.hasJudgment === true &&
+        previousState.judgmentUpdatedAt !== nextState.judgmentUpdatedAt
+      )
     )
     selectedJudgmentStateRef.current = nextState
 
@@ -238,25 +245,37 @@ export default function BatchDetail() {
     setSelectedCaseId(nextCaseId)
     setIntentionallyClearedForJob(nextCaseId === null ? data.job_id : null)
   }
-  const saveAndSelectNext = (caseId: string) => {
-    const latestBatch = queryClient.getQueryData<BatchStatusResponse>([
-      'batch-status',
-      jobId,
-    ]) ?? data
-    const currentIndex = latestBatch.results.findIndex((item) => item.case_id === caseId)
+  const latestBatchStatus = () => queryClient.getQueryData<BatchStatusResponse>([
+    'batch-status',
+    jobId,
+  ]) ?? data
+  const nextUnjudgedAfter = (batch: BatchStatusResponse, caseId: string) => {
+    const currentIndex = batch.results.findIndex((item) => item.case_id === caseId)
     const orderedCandidates = currentIndex >= 0
       ? [
-          ...latestBatch.results.slice(currentIndex + 1),
-          ...latestBatch.results.slice(0, currentIndex),
+          ...batch.results.slice(currentIndex + 1),
+          ...batch.results.slice(0, currentIndex),
         ]
-      : latestBatch.results
-    const nextPatient = orderedCandidates.find(
+      : batch.results
+    return orderedCandidates.find(
       (item) => (
         item.case_id !== null &&
         item.case_id !== caseId &&
         matchesBatchPatientFilter(item, 'unjudged')
       ),
     )
+  }
+  const updateCompletionAfterSave = (caseId: string) => {
+    const latestBatch = latestBatchStatus()
+    setCompletionMessage(
+      nextUnjudgedAfter(latestBatch, caseId)
+        ? null
+        : getBatchCompletionMessage(latestBatch),
+    )
+  }
+  const saveAndSelectNext = (caseId: string) => {
+    const latestBatch = latestBatchStatus()
+    const nextPatient = nextUnjudgedAfter(latestBatch, caseId)
     if (nextPatient?.case_id) {
       setCompletionMessage(null)
       setIntentionallyClearedForJob(null)
@@ -264,17 +283,7 @@ export default function BatchDetail() {
       setSelectedCaseId(nextPatient.case_id)
       return
     }
-    const batchIsTerminal = latestBatch.status !== 'running' && latestBatch.status !== 'queued'
-    const hasPendingPrediction = latestBatch.results.some(
-      (item) => !item.predicted_class && !item.error,
-    )
-    let nextCompletionMessage = '当前已完成患者均已诊断，等待其余患者推理完成'
-    if (batchIsTerminal) {
-      nextCompletionMessage = hasPendingPrediction
-        ? '当前可诊断患者均已完成，任务已结束，仍有患者未生成推理结果'
-        : '本批次已全部诊断'
-    }
-    setCompletionMessage(nextCompletionMessage)
+    setCompletionMessage(getBatchCompletionMessage(latestBatch))
   }
 
   const queue = (
@@ -376,6 +385,7 @@ export default function BatchDetail() {
         caseId={selectedItem.case_id}
         jobId={data.job_id}
         onDirtyChange={setJudgmentDirty}
+        onSaved={updateCompletionAfterSave}
         onSavedAndNext={saveAndSelectNext}
       >
         {({ center, right }) => (

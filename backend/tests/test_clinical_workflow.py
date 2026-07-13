@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import json
 import tempfile
 import threading
@@ -131,7 +132,12 @@ class ClinicalWorkflowTests(unittest.TestCase):
         with patch("app.api.cases.audit.log_event") as log_event:
             response = asyncio.run(submit_judgment(
                 case.case_id,
-                JudgmentIn(final_class="indeterminate", recommendation="biopsy", note="new note"),
+                JudgmentIn(
+                    final_class="indeterminate",
+                    recommendation="biopsy",
+                    note="new note",
+                    expected_judged_at=old_time,
+                ),
                 self._request(),
                 self.db,
                 self.user,
@@ -149,6 +155,100 @@ class ClinicalWorkflowTests(unittest.TestCase):
             {"id", "case_id", "final_class", "recommendation", "note", "doctor_id", "judged_at"},
         )
         self.assertEqual(response.judgment.judged_at.utcoffset(), timedelta(0))
+
+    def test_stale_judgment_update_is_rejected_without_overwriting_current_value(self):
+        case = Case(case_id="case-stale", patient_no="p-stale", clinical_text="", doctor_id=self.user.user_id)
+        current_time = datetime(2026, 7, 13, 8, 0, tzinfo=timezone.utc)
+        existing = Judgment(
+            case_id=case.case_id,
+            final_class="polyp",
+            recommendation="followup",
+            note="current note",
+            doctor_id=self.user.user_id,
+            judged_at=current_time,
+        )
+        self.db.add_all([case, self._prediction(case.case_id), existing])
+        self.db.commit()
+
+        with patch("app.api.cases.audit.log_event") as log_event:
+            response = asyncio.run(submit_judgment(
+                case.case_id,
+                JudgmentIn(
+                    final_class="normal",
+                    note="stale overwrite",
+                    expected_judged_at=current_time - timedelta(minutes=1),
+                ),
+                self._request(),
+                self.db,
+                self.user,
+            ))
+
+        self.assertIsInstance(response, JSONResponse)
+        self.assertEqual(response.status_code, 409)
+        payload = json.loads(response.body)
+        self.assertEqual(payload["error"]["code"], "JUDGMENT_CONFLICT")
+        self.assertIn("刷新", payload["error"]["message"])
+        self.db.refresh(existing)
+        self.assertEqual(existing.final_class, "polyp")
+        self.assertEqual(existing.note, "current note")
+        log_event.assert_not_called()
+
+    def test_concurrent_first_judgment_save_returns_one_success_and_one_conflict(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine = create_engine(
+                f"sqlite:///{Path(tmpdir) / 'judgment-race.db'}",
+                connect_args={"check_same_thread": False, "timeout": 5},
+            )
+            Base.metadata.create_all(engine)
+            factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+            setup_db = factory()
+            setup_db.add(User(user_id="race-doctor", display_name="并发医生", password_hash="unused"))
+            setup_db.add(Case(
+                case_id="case-first-race",
+                patient_no="p-first-race",
+                clinical_text="",
+                doctor_id="race-doctor",
+            ))
+            setup_db.add(self._prediction("case-first-race"))
+            setup_db.commit()
+            setup_db.close()
+
+            barrier = threading.Barrier(2)
+
+            def save(final_class: str):
+                db = factory()
+                try:
+                    barrier.wait(timeout=5)
+                    return asyncio.run(submit_judgment(
+                        "case-first-race",
+                        JudgmentIn(final_class=final_class, expected_judged_at=None),
+                        self._request(),
+                        db,
+                        SimpleNamespace(user_id="race-doctor"),
+                    ))
+                finally:
+                    db.close()
+
+            with patch("app.api.cases.audit.log_event"):
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    responses = list(pool.map(save, ["normal", "polyp"]))
+
+            successes = [response for response in responses if not isinstance(response, JSONResponse)]
+            conflicts = [response for response in responses if isinstance(response, JSONResponse)]
+            self.assertEqual(len(successes), 1)
+            self.assertEqual(len(conflicts), 1)
+            self.assertEqual(conflicts[0].status_code, 409)
+            self.assertEqual(json.loads(conflicts[0].body)["error"]["code"], "JUDGMENT_CONFLICT")
+
+            verify_db = factory()
+            try:
+                self.assertEqual(
+                    verify_db.query(Judgment).filter(Judgment.case_id == "case-first-race").count(),
+                    1,
+                )
+            finally:
+                verify_db.close()
+                engine.dispose()
 
     def test_new_judgment_audit_has_null_before(self):
         case = Case(case_id="case-2", patient_no="p-2", clinical_text="", doctor_id=self.user.user_id)
@@ -701,6 +801,10 @@ class ClinicalWorkflowTests(unittest.TestCase):
         response = asyncio.run(get_batch_status(job.job_id, self.db, self.user))
 
         self.assertTrue(response.results[0].has_judgment)
+        self.assertEqual(
+            response.results[0].judgment_updated_at,
+            judgment.judged_at.replace(tzinfo=timezone.utc),
+        )
 
     def test_batch_status_marks_successful_patient_without_judgment_as_unjudged(self):
         job = BatchJob(

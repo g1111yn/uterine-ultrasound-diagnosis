@@ -87,6 +87,7 @@ class BatchResultItem(BaseModel):
     image_count: int
     error: Optional[str] = None
     has_judgment: bool = False
+    judgment_updated_at: Optional[datetime] = None
 
 
 class BatchJobListItem(BaseModel):
@@ -152,6 +153,7 @@ class JudgmentIn(BaseModel):
     final_class: str
     recommendation: Optional[str] = None
     note: str = ""
+    expected_judged_at: Optional[datetime] = None
 
 
 class JudgmentOut(BaseModel):

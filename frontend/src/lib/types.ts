@@ -121,6 +121,7 @@ export interface JudgmentRequest {
   final_class: JudgmentClass
   recommendation?: string | null
   note: string
+  expected_judged_at?: string | null
 }
 
 export interface JudgmentResponse {
@@ -219,6 +220,7 @@ export interface BatchResultItem {
   confidence: number | null
   error: string | null
   has_judgment: boolean
+  judgment_updated_at: string | null
 }
 
 export interface BatchJobListItem {

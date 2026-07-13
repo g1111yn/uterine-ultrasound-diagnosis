@@ -97,6 +97,7 @@ beforeEach(() => {
 interface RenderOptions {
   detail?: CaseDetail
   onDirtyChange?: (dirty: boolean) => void
+  onSaved?: (caseId: string) => void
   onSavedAndNext?: (caseId: string) => void
   queryClient?: QueryClient
 }
@@ -104,6 +105,7 @@ interface RenderOptions {
 function renderDiagnosis({
   detail = caseDetail,
   onDirtyChange = vi.fn(),
+  onSaved = vi.fn(),
   onSavedAndNext = vi.fn(),
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -128,6 +130,7 @@ function renderDiagnosis({
           caseId="case-1"
           jobId="job-running"
           onDirtyChange={onDirtyChange}
+          onSaved={onSaved}
           onSavedAndNext={onSavedAndNext}
         >
           {renderWorkspace}
@@ -141,7 +144,7 @@ function renderDiagnosis({
     </QueryClientProvider>,
   )
 
-  return { ...view, queryClient, onDirtyChange, onSavedAndNext }
+  return { ...view, queryClient, onDirtyChange, onSaved, onSavedAndNext }
 }
 
 describe('BatchPatientDiagnosis', () => {
@@ -187,7 +190,8 @@ describe('BatchPatientDiagnosis', () => {
     const user = userEvent.setup()
     const onSavedAndNext = vi.fn()
     vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
-    const { queryClient } = renderDiagnosis({ onSavedAndNext })
+    const onSaved = vi.fn()
+    const { queryClient } = renderDiagnosis({ onSaved, onSavedAndNext })
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
 
     const primary = await screen.findByRole('button', { name: '保存判断' })
@@ -198,12 +202,14 @@ describe('BatchPatientDiagnosis', () => {
       final_class: 'polyp',
       recommendation: 'followup',
       note: '三个月后复查',
+      expected_judged_at: '2026-07-12T09:30:00Z',
     }))
     await waitFor(() => {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['case', 'case-1'] })
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['batch-status', 'job-running'] })
     })
     expect(await screen.findByText('判断已保存')).toBeVisible()
+    expect(onSaved).toHaveBeenCalledWith('case-1')
     expect(onSavedAndNext).not.toHaveBeenCalled()
   })
 
@@ -237,6 +243,26 @@ describe('BatchPatientDiagnosis', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('判断保存失败，请重试')
     expect(cancer).toBeChecked()
     expect(onSavedAndNext).not.toHaveBeenCalled()
+  })
+
+  it('retains dirty inputs when the server reports a concurrent judgment conflict', async () => {
+    const user = userEvent.setup()
+    vi.mocked(postJudgment).mockRejectedValue(
+      new Error('判断已被其他医生更新，请刷新后重试'),
+    )
+    renderDiagnosis()
+
+    const note = await screen.findByRole('textbox', { name: '备注' })
+    await user.clear(note)
+    await user.type(note, '我的未保存意见')
+    await user.click(screen.getByRole('button', { name: '保存判断' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('请刷新后重试')
+    expect(note).toHaveValue('我的未保存意见')
+    expect(postJudgment).toHaveBeenCalledWith('case-1', expect.objectContaining({
+      expected_judged_at: '2026-07-12T09:30:00Z',
+      note: '我的未保存意见',
+    }))
   })
 
   it('passes judgment dirty changes through to the batch page', async () => {
@@ -298,6 +324,7 @@ describe('BatchPatientDiagnosis', () => {
       defaultOptions: { queries: { retry: false } },
     })
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const onSaved = vi.fn()
 
     function PatientSwitcher() {
       const [caseId, setCaseId] = useState('case-a')
@@ -308,6 +335,7 @@ describe('BatchPatientDiagnosis', () => {
             caseId={caseId}
             jobId="job-running"
             onDirtyChange={vi.fn()}
+            onSaved={onSaved}
             onSavedAndNext={vi.fn()}
           >
             {({ center, right }) => (
@@ -339,6 +367,7 @@ describe('BatchPatientDiagnosis', () => {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['batch-status', 'job-running'] })
     })
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['case', 'case-b'] })
+    expect(onSaved).not.toHaveBeenCalled()
     expect(screen.queryByText('判断已保存')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -364,6 +393,7 @@ describe('BatchPatientDiagnosis', () => {
             caseId={caseId}
             jobId="job-running"
             onDirtyChange={setDirty}
+            onSaved={vi.fn()}
             onSavedAndNext={() => setCaseId('case-b')}
           >
             {({ center, right }) => (
@@ -455,6 +485,7 @@ describe('BatchPatientDiagnosis', () => {
             caseId={caseId}
             jobId="job-running"
             onDirtyChange={setDirty}
+            onSaved={vi.fn()}
             onSavedAndNext={onSavedAndNext}
           >
             {({ center, right }) => (

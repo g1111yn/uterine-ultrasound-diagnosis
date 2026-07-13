@@ -8,6 +8,7 @@ interface Props {
   initialClass?: JudgmentClass | null
   initialRecommendation?: string
   initialNote?: string
+  initialJudgedAt?: string | null
   onSubmit: (data: JudgmentRequest) => Promise<unknown>
   secondarySubmitLabel?: string
   onSecondarySubmit?: (data: JudgmentRequest) => Promise<unknown>
@@ -39,6 +40,7 @@ export default function JudgmentForm({
   initialClass = null,
   initialRecommendation = '',
   initialNote = '',
+  initialJudgedAt = null,
   onSubmit,
   secondarySubmitLabel,
   onSecondarySubmit,
@@ -76,6 +78,7 @@ export default function JudgmentForm({
       final_class: submittedFormValues.finalClass,
       recommendation: submittedFormValues.recommendation,
       note: submittedFormValues.note,
+      ...(initialJudgedAt ? { expected_judged_at: initialJudgedAt } : {}),
     }
     submittingRef.current = true
     setSubmitting(true)

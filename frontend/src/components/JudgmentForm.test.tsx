@@ -44,6 +44,28 @@ describe('JudgmentForm', () => {
     })
   })
 
+  it('submits the loaded judgment version when editing an existing diagnosis', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        initialJudgedAt="2026-07-13T08:00:00Z"
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByRole('radio', { name: '正常' }))
+    await user.click(screen.getByRole('button', { name: '保存判断' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      final_class: 'normal',
+      recommendation: '',
+      note: '',
+      expected_judged_at: '2026-07-13T08:00:00Z',
+    })
+  })
+
   it('loads an existing judgment and its recommendation and note', () => {
     renderWithRouter(
       <JudgmentForm
@@ -61,13 +83,23 @@ describe('JudgmentForm', () => {
 
   it('blocks beforeunload only after a field has changed', async () => {
     const user = userEvent.setup()
-    renderWithRouter(<JudgmentForm initialClass="polyp" onSubmit={async () => undefined} />)
+    const onDirtyChange = vi.fn()
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        onDirtyChange={onDirtyChange}
+      />,
+    )
 
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
     const cleanEvent = new Event('beforeunload', { cancelable: true })
     fireEvent(window, cleanEvent)
     expect(cleanEvent.defaultPrevented).toBe(false)
 
     await user.type(screen.getByRole('textbox', { name: '备注' }), '新增备注')
+
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
 
     const dirtyEvent = new Event('beforeunload', { cancelable: true })
     fireEvent(window, dirtyEvent)

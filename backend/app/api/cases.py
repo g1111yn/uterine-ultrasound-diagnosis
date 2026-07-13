@@ -77,6 +77,27 @@ def _not_found(message: str):
     )
 
 
+def _judgment_conflict(db: Session):
+    db.rollback()
+    return JSONResponse(
+        status_code=409,
+        content={
+            "error": {
+                "code": "JUDGMENT_CONFLICT",
+                "message": "该病例的医生判断已被其他人更新，请刷新后重试。",
+            }
+        },
+    )
+
+
+def _begin_immediate_judgment(db: Session) -> None:
+    # Request sessions are fresh. Rolling back also makes direct/unit callers safe
+    # when attribute refreshes opened an otherwise read-only transaction.
+    if db.in_transaction():
+        db.rollback()
+    db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+
+
 @router.get("/cases", response_model=CaseListResponse)
 async def list_cases(
     keyword: Optional[str] = Query(None),
@@ -269,20 +290,6 @@ async def submit_judgment(
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.require_user),
 ):
-    case = db.query(Case).filter(Case.case_id == case_id).first()
-    if not case:
-        return _not_found(f"Case {case_id} not found.")
-    if case.prediction is None:
-        return JSONResponse(
-            status_code=409,
-            content={
-                "error": {
-                    "code": "PREDICTION_REQUIRED",
-                    "message": "病例尚未完成推理，暂不能提交医生判断。",
-                }
-            },
-        )
-
     if body.final_class not in VALID_JUDGMENT_CLASSES:
         return JSONResponse(
             status_code=400,
@@ -295,7 +302,35 @@ async def submit_judgment(
             content={"error": {"code": "INVALID_RECOMMENDATION", "message": f"recommendation must be one of {RECOMMENDATION_OPTIONS}"}},
         )
 
+    _begin_immediate_judgment(db)
+    case = db.query(Case).filter(Case.case_id == case_id).first()
+    if not case:
+        db.rollback()
+        return _not_found(f"Case {case_id} not found.")
+    if case.prediction is None:
+        db.rollback()
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": {
+                    "code": "PREDICTION_REQUIRED",
+                    "message": "病例尚未完成推理，暂不能提交医生判断。",
+                }
+            },
+        )
+
     existing = db.query(Judgment).filter(Judgment.case_id == case_id).first()
+    expected_judged_at = (
+        _as_utc(body.expected_judged_at)
+        if body.expected_judged_at is not None
+        else None
+    )
+    if existing:
+        if expected_judged_at is None or _as_utc(existing.judged_at) != expected_judged_at:
+            return _judgment_conflict(db)
+    elif expected_judged_at is not None:
+        return _judgment_conflict(db)
+
     before = _judgment_audit_snapshot(existing) if existing else None
     if existing:
         existing.final_class = body.final_class

@@ -12,6 +12,7 @@ interface Props {
   caseId: string
   jobId: string
   onDirtyChange: (dirty: boolean) => void
+  onSaved: (caseId: string) => void
   onSavedAndNext: (caseId: string) => void
   children: (content: { center: ReactNode; right: ReactNode }) => ReactNode
 }
@@ -30,16 +31,21 @@ function CaseScopedDiagnosis({
   caseId,
   jobId,
   onDirtyChange,
+  onSaved,
   onSavedAndNext,
   children,
 }: Props) {
   const queryClient = useQueryClient()
   const onDirtyChangeRef = useRef(onDirtyChange)
+  const onSavedRef = useRef(onSaved)
+  const onSavedAndNextRef = useRef(onSavedAndNext)
   const lifecycleTokenRef = useRef({ caseId, active: false })
 
   useEffect(() => {
     onDirtyChangeRef.current = onDirtyChange
-  }, [onDirtyChange])
+    onSavedRef.current = onSaved
+    onSavedAndNextRef.current = onSavedAndNext
+  }, [onDirtyChange, onSaved, onSavedAndNext])
 
   useEffect(() => {
     const token = lifecycleTokenRef.current
@@ -108,13 +114,21 @@ function CaseScopedDiagnosis({
   }
 
   const data = detail.data
-  const saveJudgment = (body: JudgmentRequest) => judgment.mutateAsync(body)
+  const saveJudgment = async (body: JudgmentRequest) => {
+    const lifecycleToken = lifecycleTokenRef.current
+    const response = await judgment.mutateAsync(body)
+    if (lifecycleToken.active && lifecycleToken.caseId === caseId) {
+      onDirtyChangeRef.current(false)
+      onSavedRef.current(caseId)
+    }
+    return response
+  }
   const saveAndNext = async (body: JudgmentRequest) => {
     const lifecycleToken = lifecycleTokenRef.current
-    await saveJudgment(body)
+    await judgment.mutateAsync(body)
     if (!lifecycleToken.active || lifecycleToken.caseId !== caseId) return
     onDirtyChangeRef.current(false)
-    onSavedAndNext(caseId)
+    onSavedAndNextRef.current(caseId)
   }
 
   return (
@@ -195,6 +209,7 @@ function LoadedCaseDiagnosis({
           initialClass={data.judgment?.final_class ?? null}
           initialRecommendation={data.judgment?.recommendation ?? ''}
           initialNote={data.judgment?.note ?? ''}
+          initialJudgedAt={data.judgment?.judged_at ?? null}
           onSubmit={saveJudgment}
           secondarySubmitLabel="保存并下一位"
           onSecondarySubmit={saveAndNext}

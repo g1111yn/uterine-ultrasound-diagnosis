@@ -14,6 +14,7 @@ const results: BatchResultItem[] = [
     confidence: 0.91,
     error: null,
     has_judgment: false,
+    judgment_updated_at: null,
   },
   {
     patient_no: 'P002',
@@ -24,6 +25,7 @@ const results: BatchResultItem[] = [
     confidence: 0.76,
     error: null,
     has_judgment: true,
+    judgment_updated_at: '2026-07-12T09:00:00Z',
   },
   {
     patient_no: 'P003',
@@ -34,6 +36,7 @@ const results: BatchResultItem[] = [
     confidence: null,
     error: '图像格式无法识别',
     has_judgment: false,
+    judgment_updated_at: null,
   },
   {
     patient_no: 'P004',
@@ -44,6 +47,7 @@ const results: BatchResultItem[] = [
     confidence: null,
     error: null,
     has_judgment: false,
+    judgment_updated_at: null,
   },
 ]
 
@@ -56,6 +60,7 @@ const failedAndJudged: BatchResultItem = {
   confidence: 0.83,
   error: '模型结果无效',
   has_judgment: true,
+  judgment_updated_at: '2026-07-12T09:00:00Z',
 }
 
 const judgedWithoutPrediction: BatchResultItem = {
@@ -67,6 +72,7 @@ const judgedWithoutPrediction: BatchResultItem = {
   confidence: null,
   error: null,
   has_judgment: true,
+  judgment_updated_at: '2026-07-12T09:00:00Z',
 }
 
 const syntheticNullCase: BatchResultItem = {
