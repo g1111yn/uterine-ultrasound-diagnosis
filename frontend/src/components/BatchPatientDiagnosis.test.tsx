@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getCaseDetail, postJudgment } from '@/api/client'
@@ -80,6 +80,14 @@ const caseDetail: CaseDetail = {
 const judgmentResponse: JudgmentResponse = {
   ok: true,
   judgment: caseDetail.judgment!,
+}
+
+const caseDetailB: CaseDetail = {
+  ...caseDetail,
+  case_id: 'case-b',
+  patient_no: 'P-002',
+  prediction: null,
+  judgment: null,
 }
 
 beforeEach(() => {
@@ -275,5 +283,140 @@ describe('BatchPatientDiagnosis', () => {
     expect(screen.getByRole('radio', { name: '息肉' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '保存判断' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '保存并下一位' })).toBeEnabled()
+  })
+
+  it('isolates an in-flight save from the next selected patient', async () => {
+    const user = userEvent.setup()
+    let resolveSave!: (response: JudgmentResponse) => void
+    vi.mocked(getCaseDetail).mockImplementation(async (caseId) => (
+      caseId === 'case-a' ? { ...caseDetail, case_id: 'case-a' } : caseDetailB
+    ))
+    vi.mocked(postJudgment).mockImplementation(() => new Promise((resolve) => {
+      resolveSave = resolve
+    }))
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+
+    function PatientSwitcher() {
+      const [caseId, setCaseId] = useState('case-a')
+      return (
+        <>
+          <button type="button" onClick={() => setCaseId('case-b')}>选择病例 B</button>
+          <BatchPatientDiagnosis
+            caseId={caseId}
+            jobId="job-running"
+            onDirtyChange={vi.fn()}
+            onSavedAndNext={vi.fn()}
+          >
+            {({ center, right }) => (
+              <div>
+                <section aria-label="批量影像工作区">{center}</section>
+                <section aria-label="批量诊断工作区">{right}</section>
+              </div>
+            )}
+          </BatchPatientDiagnosis>
+        </>
+      )
+    }
+
+    const router = createMemoryRouter([{ path: '/', element: <PatientSwitcher /> }])
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: '保存判断' }))
+    await user.click(screen.getByRole('button', { name: '选择病例 B' }))
+    expect(await screen.findByText('暂无 AI 辅助建议')).toBeVisible()
+
+    await act(async () => resolveSave(judgmentResponse))
+
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['case', 'case-a'] })
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['batch-status', 'job-running'] })
+    })
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['case', 'case-b'] })
+    expect(screen.queryByText('判断已保存')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('clears dirty state when save-and-next switches to a case that fails to load', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getCaseDetail).mockImplementation((caseId) => {
+      if (caseId === 'case-b') return Promise.reject(new Error('下一病例加载失败'))
+      return Promise.resolve({ ...caseDetail, case_id: 'case-a' })
+    })
+    vi.mocked(postJudgment).mockResolvedValue(judgmentResponse)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    function SaveNextHarness() {
+      const [caseId, setCaseId] = useState('case-a')
+      const [dirty, setDirty] = useState(false)
+      return (
+        <>
+          <output data-testid="parent-dirty">{String(dirty)}</output>
+          <BatchPatientDiagnosis
+            caseId={caseId}
+            jobId="job-running"
+            onDirtyChange={setDirty}
+            onSavedAndNext={() => setCaseId('case-b')}
+          >
+            {({ center, right }) => (
+              <div>
+                <section aria-label="批量影像工作区">{center}</section>
+                <section aria-label="批量诊断工作区">{right}</section>
+              </div>
+            )}
+          </BatchPatientDiagnosis>
+        </>
+      )
+    }
+
+    const router = createMemoryRouter([{ path: '/', element: <SaveNextHarness /> }])
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+
+    await user.type(await screen.findByRole('textbox', { name: '备注' }), '，已编辑')
+    await waitFor(() => expect(screen.getByTestId('parent-dirty')).toHaveTextContent('true'))
+    await user.click(screen.getByRole('button', { name: '保存并下一位' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('下一病例加载失败')
+    expect(screen.getByTestId('parent-dirty')).toHaveTextContent('false')
+  })
+
+  it('keeps dirty inputs when a background case refresh changes judged_at', async () => {
+    const user = userEvent.setup()
+    const { queryClient } = renderDiagnosis()
+
+    const note = await screen.findByRole('textbox', { name: '备注' })
+    await user.clear(note)
+    await user.type(note, '尚未保存的本地编辑')
+    await waitFor(() => expect(note).toHaveValue('尚未保存的本地编辑'))
+
+    act(() => {
+      queryClient.setQueryData<CaseDetail>(['case', 'case-1'], {
+        ...caseDetail,
+        judgment: {
+          ...caseDetail.judgment!,
+          note: '后台返回的新内容',
+          judged_at: '2026-07-12T10:00:00Z',
+        },
+      })
+    })
+
+    await screen.findByText((content) => (
+      content.includes(formatDateTime('2026-07-12T10:00:00Z'))
+    ))
+    expect(screen.getByRole('textbox', { name: '备注' }))
+      .toHaveValue('尚未保存的本地编辑')
+    expect(screen.queryByDisplayValue('后台返回的新内容')).not.toBeInTheDocument()
   })
 })

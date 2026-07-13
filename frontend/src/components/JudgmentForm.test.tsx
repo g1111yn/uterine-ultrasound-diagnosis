@@ -288,4 +288,49 @@ describe('JudgmentForm', () => {
     await waitFor(() => expect(primaryButton).toBeEnabled())
     expect(secondaryButton).toBeEnabled()
   })
+
+  it('disables every form control and prevents edits while a save is pending', async () => {
+    const user = userEvent.setup()
+    let resolveSave!: () => void
+    const onSubmit = vi.fn(() => new Promise<void>((resolve) => {
+      resolveSave = resolve
+    }))
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        initialNote="原始备注"
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '保存判断' }))
+
+    const radios = screen.getAllByRole('radio')
+    const recommendation = screen.getByRole('combobox', { name: '处置建议' })
+    const note = screen.getByRole('textbox', { name: '备注' })
+    expect(radios.every((radio) => radio.hasAttribute('disabled'))).toBe(true)
+    expect(recommendation).toBeDisabled()
+    expect(note).toBeDisabled()
+
+    await user.click(screen.getByRole('radio', { name: '疑似子宫内膜癌' }))
+    await user.selectOptions(recommendation, 'biopsy')
+    await user.type(note, '不应写入')
+    expect(screen.getByRole('radio', { name: '息肉' })).toBeChecked()
+    expect(recommendation).toHaveValue('')
+    expect(note).toHaveValue('原始备注')
+
+    resolveSave()
+    await waitFor(() => expect(note).toBeEnabled())
+  })
+
+  it('disables every form control while externally loading', () => {
+    renderWithRouter(
+      <JudgmentForm initialClass="polyp" onSubmit={async () => undefined} loading />,
+    )
+
+    expect(screen.getAllByRole('radio').every((radio) => radio.hasAttribute('disabled')))
+      .toBe(true)
+    expect(screen.getByRole('combobox', { name: '处置建议' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: '备注' })).toBeDisabled()
+  })
 })

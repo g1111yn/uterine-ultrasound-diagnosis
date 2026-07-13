@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { getCaseDetail, getReportUrl, postJudgment } from '@/api/client'
 import { formatDateTime } from '@/lib/utils'
-import type { JudgmentRequest } from '@/lib/types'
+import type { CaseDetail, JudgmentRequest } from '@/lib/types'
 import AiSuggestionPanel from './AiSuggestionPanel'
 import ImageReviewPanel from './ImageReviewPanel'
 import JudgmentForm from './JudgmentForm'
@@ -21,12 +21,29 @@ const stablePanelClass =
 
 export default function BatchPatientDiagnosis({
   caseId,
+  ...props
+}: Props) {
+  return <CaseScopedDiagnosis key={caseId} caseId={caseId} {...props} />
+}
+
+function CaseScopedDiagnosis({
+  caseId,
   jobId,
   onDirtyChange,
   onSavedAndNext,
   children,
 }: Props) {
   const queryClient = useQueryClient()
+  const onDirtyChangeRef = useRef(onDirtyChange)
+
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange
+  }, [onDirtyChange])
+
+  useEffect(() => () => {
+    onDirtyChangeRef.current(false)
+  }, [])
+
   const detail = useQuery({
     queryKey: ['case', caseId],
     queryFn: () => getCaseDetail(caseId),
@@ -54,7 +71,7 @@ export default function BatchPatientDiagnosis({
     return children({ center: loadingPanel, right: loadingPanel })
   }
 
-  if (detail.isError) {
+  if (detail.isError && !detail.data) {
     const center = (
       <div className={`${stablePanelClass} text-xs text-text-tertiary`}>
         病例影像暂不可用
@@ -85,12 +102,60 @@ export default function BatchPatientDiagnosis({
   }
 
   const data = detail.data
-  const prediction = data.prediction
   const saveJudgment = (body: JudgmentRequest) => judgment.mutateAsync(body)
   const saveAndNext = async (body: JudgmentRequest) => {
     await saveJudgment(body)
+    onDirtyChangeRef.current(false)
     onSavedAndNext(caseId)
   }
+
+  return (
+    <LoadedCaseDiagnosis
+      data={data}
+      onDirtyChange={onDirtyChange}
+      saveJudgment={saveJudgment}
+      saveAndNext={saveAndNext}
+      saving={judgment.isPending}
+      saveSucceeded={judgment.isSuccess}
+      saveError={judgment.error}
+    >
+      {children}
+    </LoadedCaseDiagnosis>
+  )
+}
+
+interface LoadedCaseDiagnosisProps {
+  data: CaseDetail
+  onDirtyChange: (dirty: boolean) => void
+  saveJudgment: (body: JudgmentRequest) => Promise<unknown>
+  saveAndNext: (body: JudgmentRequest) => Promise<unknown>
+  saving: boolean
+  saveSucceeded: boolean
+  saveError: Error | null
+  children: Props['children']
+}
+
+function LoadedCaseDiagnosis({
+  data,
+  onDirtyChange,
+  saveJudgment,
+  saveAndNext,
+  saving,
+  saveSucceeded,
+  saveError,
+  children,
+}: LoadedCaseDiagnosisProps) {
+  const liveFormVersion = data.judgment?.judged_at ?? 'new'
+  const [editingFormVersion, setEditingFormVersion] = useState<string | null>(null)
+  const acceptedFormVersion = editingFormVersion ?? liveFormVersion
+  const handleDirtyChange = useCallback((nextDirty: boolean) => {
+    setEditingFormVersion((currentVersion) => (
+      nextDirty ? (currentVersion ?? liveFormVersion) : null
+    ))
+    onDirtyChange(nextDirty)
+  }, [liveFormVersion, onDirtyChange])
+
+  const prediction = data.prediction
 
   const right = (
     <div className="min-h-[420px] space-y-4">
@@ -118,18 +183,18 @@ export default function BatchPatientDiagnosis({
           </div>
         )}
         <JudgmentForm
-          key={`${data.case_id}-${data.judgment?.judged_at ?? 'new'}`}
+          key={`${data.case_id}-${acceptedFormVersion}`}
           initialClass={data.judgment?.final_class ?? null}
           initialRecommendation={data.judgment?.recommendation ?? ''}
           initialNote={data.judgment?.note ?? ''}
           onSubmit={saveJudgment}
           secondarySubmitLabel="保存并下一位"
           onSecondarySubmit={saveAndNext}
-          onDirtyChange={onDirtyChange}
-          loading={judgment.isPending}
+          onDirtyChange={handleDirtyChange}
+          loading={saving}
           reportUrl={getReportUrl(data.case_id)}
         />
-        {judgment.isSuccess && (
+        {saveSucceeded && (
           <div
             role="status"
             className="mt-3 rounded-md border border-success-border bg-success-bg p-2.5 text-xs text-success-text"
@@ -137,12 +202,12 @@ export default function BatchPatientDiagnosis({
             判断已保存
           </div>
         )}
-        {judgment.isError && (
+        {saveError && (
           <div
             role="alert"
             className="mt-3 rounded-md border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text"
           >
-            {judgment.error.message}
+            {saveError.message}
           </div>
         )}
       </div>

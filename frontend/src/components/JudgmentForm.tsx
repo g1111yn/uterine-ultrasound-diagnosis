@@ -60,6 +60,7 @@ export default function JudgmentForm({
     finalClass !== savedValues.finalClass ||
     recommendation !== savedValues.recommendation ||
     note !== savedValues.note
+  const controlsDisabled = loading || submitting
 
   useUnsavedChangesWarning(dirty)
 
@@ -116,6 +117,7 @@ export default function JudgmentForm({
                 value={option}
                 checked={finalClass === option}
                 onChange={() => setFinalClass(option)}
+                disabled={controlsDisabled}
                 className="mr-2 accent-info-text"
               />
               <span>{JUDGMENT_LABELS_ZH[option]}</span>
@@ -132,6 +134,7 @@ export default function JudgmentForm({
           id="judgment-recommendation"
           value={recommendation}
           onChange={(event) => setRecommendation(event.target.value)}
+          disabled={controlsDisabled}
           className={inputClass}
         >
           <option value="">请选择</option>
@@ -147,6 +150,7 @@ export default function JudgmentForm({
           id="judgment-note"
           value={note}
           onChange={(event) => setNote(event.target.value)}
+          disabled={controlsDisabled}
           rows={2}
           className={`${inputClass} resize-none`}
           placeholder="可选备注信息..."
