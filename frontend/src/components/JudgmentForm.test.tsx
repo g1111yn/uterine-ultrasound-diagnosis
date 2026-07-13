@@ -5,7 +5,10 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import JudgmentForm from './JudgmentForm'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 function renderWithRouter(element: ReactElement) {
   const router = createMemoryRouter([{ path: '/', element }])
@@ -17,6 +20,7 @@ describe('JudgmentForm', () => {
     renderWithRouter(<JudgmentForm initialClass={null} onSubmit={async () => undefined} />)
 
     expect(screen.getByRole('button', { name: '保存判断' })).toBeDisabled()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
   })
 
   it('shows four choices and submits an indeterminate judgment', async () => {
@@ -108,5 +112,131 @@ describe('JudgmentForm', () => {
     const rejectedEvent = new Event('beforeunload', { cancelable: true })
     fireEvent(window, rejectedEvent)
     expect(rejectedEvent.defaultPrevented).toBe(true)
+  })
+
+  it('submits the current judgment only through the secondary action', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const onSecondarySubmit = vi.fn().mockResolvedValue(undefined)
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={onSubmit}
+        secondarySubmitLabel="保存并进入下一位"
+        onSecondarySubmit={onSecondarySubmit}
+      />,
+    )
+
+    await user.click(screen.getByRole('radio', { name: '疑似子宫内膜癌' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: '处置建议' }), 'biopsy')
+    await user.type(screen.getByRole('textbox', { name: '备注' }), '建议取样')
+    await user.click(screen.getByRole('button', { name: '保存并进入下一位' }))
+
+    expect(onSecondarySubmit).toHaveBeenCalledWith({
+      final_class: 'endometrial_cancer',
+      recommendation: 'biopsy',
+      note: '建议取样',
+    })
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('reports dirty true then false after a secondary save succeeds', async () => {
+    const user = userEvent.setup()
+    const onDirtyChange = vi.fn()
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        secondarySubmitLabel="保存并进入下一位"
+        onSecondarySubmit={async () => undefined}
+        onDirtyChange={onDirtyChange}
+      />,
+    )
+
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+    await user.type(screen.getByRole('textbox', { name: '备注' }), '已编辑')
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
+
+    await user.click(screen.getByRole('button', { name: '保存并进入下一位' }))
+
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+    expect(onDirtyChange.mock.calls.map(([dirty]) => dirty)).toEqual([false, true, false])
+  })
+
+  it('retains values and stays dirty when the secondary save rejects', async () => {
+    const user = userEvent.setup()
+    const onDirtyChange = vi.fn()
+    const onSecondarySubmit = vi.fn().mockRejectedValue(new Error('保存失败'))
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={async () => undefined}
+        secondarySubmitLabel="保存并进入下一位"
+        onSecondarySubmit={onSecondarySubmit}
+        onDirtyChange={onDirtyChange}
+      />,
+    )
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '处置建议' }), 'followup')
+    await user.type(screen.getByRole('textbox', { name: '备注' }), '三个月后复查')
+    await user.click(screen.getByRole('button', { name: '保存并进入下一位' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '保存并进入下一位' })).toBeEnabled())
+
+    expect(screen.getByRole('combobox', { name: '处置建议' })).toHaveValue('followup')
+    expect(screen.getByRole('textbox', { name: '备注' })).toHaveValue('三个月后复查')
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+  })
+
+  it('disables both actions and blocks duplicate submissions while either is pending', async () => {
+    const user = userEvent.setup()
+    let resolvePrimary!: () => void
+    let resolveSecondary!: () => void
+    const onSubmit = vi.fn(() => new Promise<void>((resolve) => {
+      resolvePrimary = resolve
+    }))
+    const onSecondarySubmit = vi.fn(() => new Promise<void>((resolve) => {
+      resolveSecondary = resolve
+    }))
+    renderWithRouter(
+      <JudgmentForm
+        initialClass="polyp"
+        onSubmit={onSubmit}
+        secondarySubmitLabel="保存并进入下一位"
+        onSecondarySubmit={onSecondarySubmit}
+      />,
+    )
+    const primaryButton = screen.getByRole('button', { name: '保存判断' })
+    const secondaryButton = screen.getByRole('button', { name: '保存并进入下一位' })
+
+    await user.click(secondaryButton)
+
+    expect(primaryButton).toBeDisabled()
+    expect(secondaryButton).toBeDisabled()
+    await user.click(primaryButton)
+    await user.click(secondaryButton)
+    expect(onSecondarySubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    resolveSecondary()
+    await waitFor(() => expect(primaryButton).toBeEnabled())
+    expect(secondaryButton).toBeEnabled()
+
+    await user.click(primaryButton)
+
+    expect(primaryButton).toBeDisabled()
+    expect(secondaryButton).toBeDisabled()
+    await user.click(primaryButton)
+    await user.click(secondaryButton)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledWith({
+      final_class: 'polyp',
+      recommendation: '',
+      note: '',
+    })
+    expect(onSecondarySubmit).toHaveBeenCalledTimes(1)
+
+    resolvePrimary()
+    await waitFor(() => expect(primaryButton).toBeEnabled())
+    expect(secondaryButton).toBeEnabled()
   })
 })

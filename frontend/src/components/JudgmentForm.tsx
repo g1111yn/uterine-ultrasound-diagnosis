@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Download, Save } from 'lucide-react'
 import type { JudgmentClass, JudgmentRequest } from '@/lib/types'
 import { JUDGMENT_LABELS_ZH } from '@/lib/classification'
@@ -9,6 +9,9 @@ interface Props {
   initialRecommendation?: string
   initialNote?: string
   onSubmit: (data: JudgmentRequest) => Promise<unknown>
+  secondarySubmitLabel?: string
+  onSecondarySubmit?: (data: JudgmentRequest) => Promise<unknown>
+  onDirtyChange?: (dirty: boolean) => void
   loading?: boolean
   caseId?: string
   reportUrl?: string
@@ -37,6 +40,9 @@ export default function JudgmentForm({
   initialRecommendation = '',
   initialNote = '',
   onSubmit,
+  secondarySubmitLabel,
+  onSecondarySubmit,
+  onDirtyChange,
   loading = false,
   reportUrl,
 }: Props) {
@@ -57,22 +63,35 @@ export default function JudgmentForm({
 
   useUnsavedChangesWarning(dirty)
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+
+  const submitWith = async (submit: (data: JudgmentRequest) => Promise<unknown>) => {
     if (!finalClass || loading || submittingRef.current) return
 
-    const submittedValues = { final_class: finalClass, recommendation, note }
+    const submittedFormValues = { finalClass, recommendation, note }
+    const submittedValues: JudgmentRequest = {
+      final_class: submittedFormValues.finalClass,
+      recommendation: submittedFormValues.recommendation,
+      note: submittedFormValues.note,
+    }
     submittingRef.current = true
     setSubmitting(true)
     try {
-      await onSubmit(submittedValues)
-      setSavedValues({ finalClass, recommendation, note })
+      await submit(submittedValues)
+      setSavedValues(submittedFormValues)
     } catch {
       // The mutation exposes its error state to the page; keep the form dirty for retry.
     } finally {
       submittingRef.current = false
       setSubmitting(false)
     }
+  }
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    void submitWith(onSubmit)
   }
 
   return (
@@ -143,6 +162,17 @@ export default function JudgmentForm({
           <Save className="h-3.5 w-3.5" />
           {loading || submitting ? '提交中...' : '保存判断'}
         </button>
+        {secondarySubmitLabel && onSecondarySubmit && (
+          <button
+            type="button"
+            disabled={loading || submitting || finalClass === null}
+            onClick={() => void submitWith(onSecondarySubmit)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-info-border bg-bg-primary px-4 py-2 text-xs font-medium text-info-text transition-colors hover:bg-info-bg disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Save className="h-3.5 w-3.5" />
+            {loading || submitting ? '提交中...' : secondarySubmitLabel}
+          </button>
+        )}
         {reportUrl && (
           <a
             href={reportUrl}
