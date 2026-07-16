@@ -1,108 +1,177 @@
-# 部署文档（V1）
+# 生产部署手册
 
-## 1. 硬件要求
+本文以 Linux、systemd 和 Nginx 为基准，部署目录为 `/opt/ultrasound`。Windows 可使用 NSSM，参考 `backend/deploy/nssm-install.md`。
 
-| 场景 | 最低 | 推荐 |
-|------|------|------|
-| CPU | 4 核 | 8 核 + |
-| 内存 | 8 GB | 16 GB |
-| 磁盘 | 50 GB SSD | 200 GB SSD |
-| 网络 | 100 Mbps | 1 Gbps |
+## 1. 部署边界
 
-> CPU 推理。首次加载 BERT + ResNet18 约需 1.2 GB 内存；模型权重 + BERT 目录合计约 500 MB。
+- 后端使用 FastAPI、SQLite 和本地文件目录，前端构建产物由后端静态托管。
+- 推理模型为 EfficientNet-B3 + 医学 BERT，默认执行患者级 `mean` 聚合。
+- 当前所有已登录医生共享查看病例和批量任务；正式接入医院前，应按院方的科室、岗位和病例归属规则收紧权限。
+- 不要把模型权重、真实患者数据、生产密码、证书私钥或会话 Cookie 提交到 Git。
 
-## 2. 系统支持
+## 2. 资源与软件要求
 
-- Linux：Ubuntu 22.04 LTS / Rocky 9（推荐 systemd 部署）
-- Windows：Windows Server 2019 / 2022（用 NSSM，见 `backend/deploy/nssm-install.md`）
+| 项目 | 最低建议 | 生产建议 |
+|------|----------|----------|
+| CPU | 4 核 | 8 核或以上 |
+| 内存 | 8 GB | 16 GB 或以上，并以真实样本压测校准 |
+| 磁盘 | 50 GB SSD | 200 GB SSD 或按医院留存周期扩容 |
+| 网络 | 100 Mbps | 1 Gbps 内网 |
+| 操作系统 | Ubuntu 22.04 LTS / Rocky Linux 9 | 由医院统一维护的长期支持版本 |
+| Python | 3.10 或以上 | 独立虚拟环境 |
+| Node.js | 20.19 或以上 | 与 `frontend/package-lock.json` 兼容的 LTS 版本 |
 
-## 3. 一次性安装步骤（Linux）
+系统依赖示例：
 
 ```bash
-# 3.1 依赖
 sudo apt update
-sudo apt install -y python3.10 python3.10-venv python3-pip sqlite3 rsync libjpeg-dev libpng-dev
+sudo apt install -y python3.10 python3.10-venv python3-pip sqlite3 rsync \
+  libjpeg-dev libpng-dev
+node --version
+npm --version
+```
 
-# 3.2 用户 + 目录
+Node.js 建议通过医院批准的软件源安装，不要直接在生产服务器运行未经审核的在线安装脚本。
+
+## 3. 目录、账户与模型文件
+
+创建专用运行账户并将代码放到 `/opt/ultrasound`：
+
+```bash
 sudo useradd -r -s /bin/bash -m -d /opt/ultrasound ultrasound
-sudo -u ultrasound mkdir -p /opt/ultrasound
-
-# 3.3 拉取代码到 /opt/ultrasound/（scp 或 git）
+sudo mkdir -p /opt/ultrasound/backend/checkpoints
+sudo mkdir -p /opt/ultrasound/backend/models
 sudo chown -R ultrasound:ultrasound /opt/ultrasound
+```
 
-# 3.4 建 venv
+部署代码后，由受控介质放置以下模型文件：
+
+```text
+/opt/ultrasound/backend/checkpoints/best_single_fold3.pth
+/opt/ultrasound/backend/models/nlp_corom_sentence-embedding_chinese-base-medical/
+```
+
+确认文件存在且运行账户可读：
+
+```bash
+sudo -u ultrasound test -r /opt/ultrasound/backend/checkpoints/best_single_fold3.pth
+sudo -u ultrasound test -d /opt/ultrasound/backend/models/nlp_corom_sentence-embedding_chinese-base-medical
+```
+
+## 4. 安装、构建与首次启动
+
+必须先安装后端依赖并构建前端，再启动 systemd。后端只会在启动时检测 `frontend/dist/`；启动后才构建前端会导致首页不可用，直到服务重启。
+
+### 4.1 安装后端依赖
+
+```bash
 sudo -u ultrasound bash -lc '
   cd /opt/ultrasound/backend
   python3.10 -m venv venv
   source venv/bin/activate
-  pip install --upgrade pip
-  pip install -r requirements.txt
+  python -m pip install --upgrade pip
+  python -m pip install -r requirements.txt
 '
+```
 
-# 3.5 放模型权重
-#   将 bert-base_fold1_best.pth 放到 /opt/ultrasound/models/checkpoints/
-#   将 tiansz/bert-base-chinese 整个目录放到 /opt/ultrasound/models/bert/
-#   （或保持默认路径 ~/Documents/超声/，不改环境变量）
+### 4.2 构建前端
 
-# 3.6 初始化数据库 + 管理员
+```bash
+sudo -u ultrasound bash -lc '
+  cd /opt/ultrasound/frontend
+  npm ci
+  npm run build
+  test -f dist/index.html
+'
+```
+
+### 4.3 初始化数据库和管理员
+
+```bash
 sudo -u ultrasound bash -lc '
   cd /opt/ultrasound/backend
   source venv/bin/activate
   python scripts/init_db.py
-  python scripts/init_admin.py --user-id admin --password "Admin#2026"
+  python scripts/init_admin.py --user-id admin --password "<一次性强密码>"
 '
-
-# 3.7 装 systemd 服务
-sudo cp /opt/ultrasound/backend/deploy/ultrasound.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now ultrasound
-sudo systemctl status ultrasound
-
-# 3.8 前端构建
-cd /opt/ultrasound/frontend
-sudo -u ultrasound bash -lc 'npm install && npm run build'
-# dist 就在 frontend/dist/，后端会自动挂载
 ```
 
-访问 `http://<服务器 IP>:8000/`，用 admin 登录后立即修改密码并在"管理 → 用户"里创建医生账号。
+管理员首次登录后必须立即修改一次性密码。命令行密码可能进入 shell 历史或进程列表，应按医院密码交付流程执行并清理暴露面。
 
-## 4. 环境变量（.env 或 systemd Environment=）
+### 4.4 安装 systemd 服务
 
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `LOG_FORMAT` | `console` | `json` 时输出结构化日志（推荐生产用） |
-| `LOG_LEVEL` | `INFO` | |
-| `COOKIE_SECURE` | `false` | HTTPS 部署改为 `true` |
-| `COOKIE_SAMESITE` | `lax` | |
-| `SESSION_LIFETIME_HOURS` | `8` | |
-| `LOGIN_FAILURE_LIMIT` | `5` | 连续失败次数触发锁 |
-| `LOGIN_LOCKOUT_MINUTES` | `15` | |
-| `PASSWORD_MIN_LENGTH` | `8` | |
-| `HSTS_ENABLED` | `false` | HTTPS 才开 |
-| `FORCE_HTTPS_REDIRECT` | `false` | HTTPS 才开 |
-| `MODEL_CKPT_PATH` | `~/Documents/超声/checkpoints/bert-base_fold1_best.pth` | |
-| `BERT_PATH` | `~/Documents/超声/models/tiansz/bert-base-chinese` | |
-| `AGGREGATION_STRATEGY` | `mean` | `mean` / `max_severity` / `majority_vote` |
-| `MAX_IMAGES_PER_CASE` | `10` | 单例一次最多图数 |
-| `MAX_IMAGE_BYTES` | `52428800` | 单图 ≤ 50 MB |
-| `BATCH_MAX_UNCOMPRESSED_BYTES` | `524288000` | ZIP 解压上限 500 MB |
-| `BATCH_MAX_IMAGES_PER_PATIENT` | `20` | |
-| `MAX_ACTIVE_BATCHES_PER_USER` | `1` | |
-| `MAX_PENDING_BATCHES_GLOBAL` | `10` | |
+仓库服务文件默认使用 `www-data`。本手册创建的是 `ultrasound` 账户，因此必须用 override 保持运行账户和目录权限一致：
 
-## 5. HTTPS（可选）
+```bash
+sudo cp /opt/ultrasound/backend/deploy/ultrasound.service /etc/systemd/system/ultrasound.service
+sudo mkdir -p /etc/systemd/system/ultrasound.service.d
+sudo tee /etc/systemd/system/ultrasound.service.d/override.conf >/dev/null <<'EOF'
+[Service]
+User=ultrasound
+Group=ultrasound
+Environment=MODEL_CKPT_PATH=/opt/ultrasound/backend/checkpoints/best_single_fold3.pth
+Environment=BERT_PATH=/opt/ultrasound/backend/models/nlp_corom_sentence-embedding_chinese-base-medical
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ultrasound
+sudo systemctl status ultrasound --no-pager
+```
 
-建议用 Nginx 做 TLS 终止反代：
+### 4.5 首次验证
+
+```bash
+curl -sS http://127.0.0.1:8000/api/health
+journalctl -u ultrasound -n 100 --no-pager
+```
+
+健康响应应为 HTTP 200，且 `model_loaded` 为 `true`。随后在浏览器完成登录、单病例推理、医生判断保存和小型批量任务抽样；不要只以首页可打开作为验收标准。
+
+## 5. 环境变量
+
+可在 systemd override 中增加 `Environment=`，修改后执行 `systemctl daemon-reload` 和 `systemctl restart ultrasound`。
+
+| 变量 | 代码默认值 | 说明 |
+|------|------------|------|
+| `HOST` | `0.0.0.0` | 监听地址；systemd 的 `ExecStart` 已显式指定 |
+| `PORT` | `8000` | 监听端口；systemd 的 `ExecStart` 已显式指定 |
+| `LOG_FORMAT` | `console` | 生产建议 `json`；仓库 systemd 文件已设置 |
+| `LOG_LEVEL` | `INFO` | 日志级别 |
+| `COOKIE_SECURE` | `false` | 全站 HTTPS 后设为 `true` |
+| `COOKIE_SAMESITE` | `lax` | 会话 Cookie SameSite 策略 |
+| `SESSION_LIFETIME_HOURS` | `8` | 滑动会话有效期 |
+| `LOGIN_FAILURE_LIMIT` | `5` | 锁定窗口内允许的连续失败次数 |
+| `LOGIN_LOCKOUT_MINUTES` | `15` | 登录锁定窗口 |
+| `PASSWORD_MIN_LENGTH` | `8` | 密码仍必须同时包含字母和数字 |
+| `HSTS_ENABLED` | `false` | 仅在全站 HTTPS 验证完成后开启 |
+| `FORCE_HTTPS_REDIRECT` | `false` | 仅在反向代理协议头配置正确后开启 |
+| `MODEL_CKPT_PATH` | `backend/checkpoints/best_single_fold3.pth` | 生产路径见上文 |
+| `BERT_PATH` | `backend/models/nlp_corom_sentence-embedding_chinese-base-medical/` | 生产路径见上文 |
+| `MODEL_FOLD_PATHS` | 空 | 可选，多折权重路径以逗号分隔；未配置时使用单权重 |
+| `AGGREGATION_STRATEGY` | `mean` | 可选 `mean`、`max_severity`、`majority_vote` |
+| `MAX_IMAGES_PER_CASE` | `30` | 单病例最多 30 张 |
+| `MAX_IMAGE_BYTES` | `52428800` | 单图 50 MB |
+| `BATCH_MAX_UNCOMPRESSED_BYTES` | `524288000` | ZIP 解压后总量 500 MB |
+| `BATCH_MAX_IMAGES_PER_PATIENT` | `30` | 批量每患者最多处理 30 张 |
+| `BATCH_IMAGE_TIMEOUT_SECONDS` | `300` | 批量单图等待推理的超时时间 |
+| `MAX_ACTIVE_BATCHES_PER_USER` | `1` | 每用户同时处于活动状态的批次数 |
+| `MAX_PENDING_BATCHES_GLOBAL` | `10` | 全局活动批次数上限 |
+
+限制值来自当前代码配置。提高限制会同步增加上传、磁盘、内存和推理队列压力，修改前必须用医院真实规模的脱敏样本验证。
+
+## 6. HTTPS 与 Nginx
+
+建议由 Nginx 终止 TLS，并只向医院内网开放服务：
 
 ```nginx
 server {
     listen 443 ssl http2;
     server_name diagnosis.hospital.internal;
+
     ssl_certificate     /etc/ssl/certs/hospital.crt;
     ssl_certificate_key /etc/ssl/private/hospital.key;
 
     client_max_body_size 600m;
-    proxy_read_timeout 120s;
+    proxy_read_timeout 300s;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -113,30 +182,52 @@ server {
 }
 ```
 
-部署后把 `COOKIE_SECURE=true`、`HSTS_ENABLED=true`、`FORCE_HTTPS_REDIRECT=true` 打开，重启 systemd 服务。
+确认 HTTPS、反向代理和登录均正常后，再设置：
 
-## 6. 备份
-
-`backend/scripts/backup.sh` 做 SQLite `.backup` + uploads 增量 rsync，保留 30 天。
-
-cron 每天凌晨 3 点：
-
-```cron
-0 3 * * * /opt/ultrasound/backend/scripts/backup.sh >> /var/log/ultrasound-backup.log 2>&1
+```ini
+Environment=COOKIE_SECURE=true
+Environment=HSTS_ENABLED=true
+Environment=FORCE_HTTPS_REDIRECT=true
 ```
 
-**每月做一次恢复演练**：从 `BACKUP_DIR/app-*.db` 复制到一台测试机 `data/app.db`、把 `uploads-latest/` 同步到 `data/uploads/`，启动服务确认能登录 + 查历史 + 查单个 case 详情。
+## 7. 数据目录与备份
 
-## 7. 升级流程
+运行数据位于 `/opt/ultrasound/backend/data/`：
 
-1. `systemctl stop ultrasound`
-2. 跑一次 backup.sh 留档
-3. `git pull` 或 rsync 新代码
-4. `pip install -r requirements.txt`
-5. 有 schema 变更时手动跑迁移脚本（V2 时会接入 Alembic）
-6. `npm run build`（前端）
-7. `systemctl start ultrasound`，看 `systemctl status`、`journalctl -u ultrasound -f`
+```text
+app.db       SQLite 数据库
+uploads/     原始上传图像
+previews/    DICOM 等格式的浏览预览
+gradcam/     可解释性图像
+batch/       批量 ZIP 解压工作目录
+```
 
-## 8. 故障排查
+`backend/scripts/backup.sh` 当前只备份 SQLite 数据库和 `uploads/`，默认写入 `/var/backups/ultrasound` 并保留 30 天。若医院要求完整恢复预览和 Grad-CAM，还必须按院方策略额外备份 `previews/` 与 `gradcam/`；不要把 `batch/` 当作长期临床归档。
 
-详见 `docs/runbook.md`。
+每日备份示例：
+
+```cron
+0 3 * * * BACKUP_DIR=/mnt/nas/backups/ultrasound /opt/ultrasound/backend/scripts/backup.sh >> /var/log/ultrasound-backup.log 2>&1
+```
+
+每月至少在隔离测试机恢复一次：复制一份 `app-*.db` 为 `backend/data/app.db`，同步 `uploads-latest/`，按备份范围恢复预览和 Grad-CAM，然后验证登录、病例详情、原图、推理结果与医生判断。恢复前必须停止测试实例，且不得用演练数据覆盖生产目录。
+
+## 8. 升级与回滚
+
+升级按以下顺序执行：
+
+1. 记录当前版本号和模型校验值，通知临床用户维护窗口。
+2. `sudo systemctl stop ultrasound`。
+3. 执行 `backend/scripts/backup.sh`，并确认数据库和图像备份可读。
+4. 更新代码；不要覆盖生产模型、数据目录和 systemd override。
+5. 在后端虚拟环境执行 `python -m pip install -r requirements.txt`。
+6. 在 `frontend/` 执行 `npm ci && npm run build`，确认 `dist/index.html` 存在。
+7. 如版本说明包含数据库迁移，先在备份副本验证后再执行；当前项目未集成 Alembic，不要臆测或手工修改表结构。
+8. `sudo systemctl start ultrasound`，检查 status、日志和 `/api/health`。
+9. 登录后抽样验证历史病例、单病例推理、医生判断保存及一个小型批量任务。
+
+回滚时停止服务，恢复已验证的代码版本、数据库和与其一致的图像文件，再构建对应前端并启动。批量任务不能跨服务重启续跑：启动时遗留的 `pending/running` 任务会被标记为失败，需要重新提交。
+
+## 9. 运维入口
+
+值班排障、批次异常、医生判断冲突、ZIP 校验和统计不同步处理见 `docs/runbook.md`。
