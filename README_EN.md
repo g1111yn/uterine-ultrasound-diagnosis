@@ -1,263 +1,201 @@
 # Uterine Ultrasound AI-Assisted Diagnosis System
 
-> AI-powered uterine ultrasound diagnosis assistant for clinical use.
+[中文](README.md)
 
-[中文版本](README.md)
+## System Positioning
 
----
+This project is a clinical decision-support and research prototype for gynecological ultrasound in hospitals. It accepts multiple ultrasound images and optional clinical text for a patient, produces a patient-level three-class AI-assisted suggestion with probabilities and Grad-CAM heatmaps, and requires a physician to review the evidence and actively save a final judgment in the workbench.
 
-## 1. Project Introduction
+The system is not an autonomous diagnostic device and does not replace physician review, differential diagnosis, or an established hospital care pathway. Model output is supporting information only; a licensed physician remains responsible for the final judgment and subsequent care.
 
-### 1.1 Overview
+## Clinical Workflow
 
-The Uterine Ultrasound AI-Assisted Diagnosis System is an AI-powered clinical decision support tool for gynecological ultrasound examinations. The system accepts ultrasound images (JPEG / PNG / BMP / TIFF / DICOM), runs inference through a deep learning model, and outputs prediction probabilities for three categories: **Normal, Endometrial Cancer, and Polyp**.
+### Single-Case Clinical Workbench
 
-**V2 Model Architecture** (current version):
-- **Image Encoder**: EfficientNet-B3 (1536-dim features, input 300x300 + ImageNet normalization)
-- **Text Encoder**: Alibaba DAMO Medical BERT (`nlp_corom_sentence-embedding_chinese-base-medical`, 768-dim CLS vector)
-- **Fusion**: Image-Dominant Gated Fusion (ImageDominantGatedFusion, 256-dim hidden)
-- **Classifier**: 512 → 256 → 3 (softmax)
-- **Training Data**: 10,587 patients / 196,255 images, 5-fold cross-validation
-- **Inference Weights**: EMA weights (Fold 3, pat_acc=0.8600)
+A physician enters a patient number, examination method, and findings, and may upload 1 to 30 images, with a maximum of 50 MB per file. The system asynchronously performs per-image inference and patient-level aggregation. The case detail uses a three-column workbench: case and examination information on the left, original/Grad-CAM image review in the center, and the AI-assisted suggestion alongside the physician final judgment on the right.
 
-The system supports **single-case inference** (doctor uploads 1~30 images; per-image inference aggregated into patient-level diagnosis) and **batch inference** (upload dozens to hundreds of patients via ZIP; async execution with automatic queuing).
+### Batch Inference and Continuous Diagnosis
 
-### 1.2 Key Features
+After a physician uploads a multi-patient ZIP, the backend processes patients serially; single-case work can enter the inference queue between batch images at higher priority. The batch detail keeps the patient queue and case workbench on one page. It provides All / Unjudged / Judged / Inference failed filters plus Save judgment and Save and next patient actions. Patients with pending inference or failed inference are not diagnosable and cannot have a physician judgment saved.
 
-| Feature | Description |
-|---------|-------------|
-| **Multimodal Fusion** | Image + text fused via gated mechanism; text input is "exam method + findings" concatenated and fed to BERT as one segment |
-| **Patient-level Inference** | Up to 30 images per patient, independently inferred then aggregated via pluggable strategies |
-| **Priority Queue** | Single-case tasks (priority=0) preempt batch tasks (priority=5) |
-| **Async Task Model** | Returns 202 + task_id immediately; frontend polls until completion |
-| **Idempotent Submission** | `idempotency_key` prevents duplicate cases |
-| **Text Preprocessing** | Training-consistent `clean_check_seen` / `clean_check_project` cleaning rules |
-| **bcrypt Auth** | HttpOnly + SameSite session cookies, consecutive failure lockout, forced password change |
-| **Audit Logging** | Full recording of all operations with CSV export |
-| **DICOM Support** | Auto-detection with window width/level adjustment and RGB preview |
-| **Grad-CAM** | Heatmaps from EfficientNet-B3's last conv layer |
-| **PDF Reports** | Chinese PDF diagnosis reports via reportlab |
-| **Structured Logging** | structlog JSON output with request_id tracing |
+### Physician Judgment and Responsibility
 
-### 1.3 Tech Stack
+The model classes are fixed to `normal`, `polyp`, and `endometrial_cancer`. A physician does not passively accept model output: they must actively select and save one of `normal`, `polyp`, `endometrial_cancer`, or `indeterminate` (indeterminate / further examination required), and may add a care recommendation and note.
 
-**Backend**
-- Python 3.10 + FastAPI + Uvicorn
-- SQLAlchemy 2.x + SQLite (WAL mode)
-- PyTorch (CPU inference) + torchvision + Transformers (BERT)
-- bcrypt + structlog + reportlab + pydicom
+When updating an existing judgment, the client submits its `expected_judged_at` timestamp. If another physician has already changed the record, the service returns `JUDGMENT_CONFLICT`; the local edit is retained, and the physician should refresh, review the latest judgment, and retry. This is timestamp-based optimistic concurrency control, not case locking.
 
-**Frontend**
-- React 19 + TypeScript 6 + Vite 8
-- Tailwind CSS 4 + lucide-react
-- React Router 6 + React Query (TanStack) + Zustand
-- Axios
+## Model and Inference
 
-**Deployment**
-- Linux: systemd service + Nginx reverse proxy (optional HTTPS)
-- Windows: NSSM service management
+- Image encoder: EfficientNet-B3; images are resized to 300 x 300 and ImageNet-normalized.
+- Text encoder: Alibaba Chinese medical BERT, `nlp_corom_sentence-embedding_chinese-base-medical`, using its CLS vector; examination method and findings are cleaned with training-aligned rules and concatenated.
+- Multimodal fusion: image-dominant gated fusion; a zero text vector is used when no text is supplied.
+- Patient-level output: per-image three-class probabilities are aggregated into the patient suggestion. The default strategy is `mean`; `max_severity` and `majority_vote` are also implemented.
+- Explainability: Grad-CAM overlays are generated from the final EfficientNet-B3 convolutional layer for per-image predictions.
+- Runtime: the current inferencer runs on CPU. The model checkpoint and BERT directory are not distributed with the repository and must be supplied by the deployer.
 
-### 1.4 Inference Pipeline
+The model covers only its three training-defined classes and does not rule out other uterine or adnexal disease. Research evaluation should independently validate calibration, subgroup performance, failure cases, and distribution shift in the target hospital population; UI confidence must not be treated as a substitute for clinical performance evidence.
 
-```
-┌──────────────┐     ┌──────────────────┐     ┌───────────────────────────┐
-│  PIL RGB img │────▶│ Resize(300x300)  │────▶│ ToTensor + ImageNet Norm  │
-└──────────────┘     └──────────────────┘     └─────────────┬─────────────┘
-                                                            │ (1, 3, 300, 300)
-┌──────────────┐     ┌──────────────────┐                   ▼
-│ Exam method  │────▶│ clean_check_     │     ┌───────────────────────────┐
-│ Findings     │     │ project/seen     │────▶│  BERT CLS (1, 768)        │
-└──────────────┘     │ → concat → BERT  │     └─────────────┬─────────────┘
-                     └──────────────────┘                   │
-                                                            ▼
-                     ┌──────────────────────────────────────────────────────┐
-                     │  EfficientNet-B3 ──┐                                 │
-                     │                    ├─▶ ImageDominantGatedFusion(256) │
-                     │  BERT CLS ─────────┘          │                      │
-                     │                               ▼                      │
-                     │               Classifier (512→256→3) → softmax       │
-                     └──────────────────────────────────────────────────────┘
+## Feature Overview
+
+| Area | Current capability |
+| --- | --- |
+| Single case | Multi-image upload, asynchronous task status, patient aggregation, three-column clinical workbench |
+| Batch work | ZIP validation, progress and history, cancellation, patient queue, continuous inline diagnosis |
+| Physician review | Four-class final judgment, recommendation, notes, Save/Save and next, unsaved-edit protection, judgment conflict detection |
+| Image review and output | Original image, browser preview for DICOM, per-image probabilities, Grad-CAM, Chinese PDF report |
+| Search | Cases by keyword, date, model class, physician, and single/batch source |
+| Administration | Physician/admin accounts, session authentication, login lockout, audit log and CSV export, health and metrics endpoints |
+
+Supported image formats are JPG, JPEG, PNG, BMP, TIF, TIFF, and DICOM (`.dcm`). A single case accepts up to 30 images at 50 MB per image. A batch accepts up to 30 images per patient and at most 500 MB total after ZIP decompression.
+
+## Technical Architecture
+
+```text
+React 19 + TypeScript + Vite + TanStack Query
+                    |
+              /api (session cookie)
+                    |
+FastAPI + SQLAlchemy + priority inference queue
+          |                         |
+ SQLite (WAL)             PyTorch / Transformers
+          |                         |
+cases, judgments, audit     EfficientNet-B3 + medical BERT
+          |
+backend/data: uploads, previews, Grad-CAM, batch files
 ```
 
-- **No-text mode**: When findings are empty, text vector is a 768-dim zero vector (image-only inference)
-- **Exam method** options: Transvaginal 3D US (default) / Transvaginal US / Transabdominal 3D US / Transabdominal US / Transperineal 3D US
+FastAPI provides authentication, case, batch, judgment, reporting, and operations endpoints. The inference queue prioritizes single-case image tasks over batch image tasks. SQLite stores business records, while uploads and derived images live in the local data directory. The frontend uses React Router and TanStack Query for routing, server state, polling, and judgment-version refreshes.
 
-### 1.5 Project Structure
+See the [backend guide](backend/README.md) and [frontend guide](frontend/README.md) for development details.
 
+## Quick Start
+
+Python 3.10+, Node.js/npm, and the following local model files are required. `MODEL_CKPT_PATH` and `BERT_PATH` may point to other locations instead:
+
+```text
+backend/checkpoints/best_single_fold3.pth
+backend/models/nlp_corom_sentence-embedding_chinese-base-medical/
 ```
+
+Start the backend and create a development administrator:
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python scripts/init_db.py
+python scripts/init_admin.py --user-id admin --password 'ChangeMe#2026'
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+In another terminal, start the frontend. Vite proxies `/api` to `http://localhost:8000` by default:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` and change the initial password immediately after first login. FastAPI's interactive documentation is at `http://localhost:8000/docs`. If model files are missing, the service can still start, but health reports that the model is not loaded and inference tasks cannot succeed.
+
+## Batch ZIP Format
+
+The ZIP root must directly contain a UTF-8 `manifest.csv` with `patient_no` and `clinical_text` columns; `check_project` is optional. Each patient directory must be a direct child of the ZIP root, and its name must match the corresponding `patient_no` **exactly**.
+
+```text
+batch.zip
+├── manifest.csv
+├── P0001/
+│   ├── image-01.jpg
+│   └── image-02.dcm
+└── P0002/
+    └── image-01.png
+```
+
+```csv
+patient_no,clinical_text,check_project
+P0001,Anteverted uterus with a hyperechoic intrauterine lesion,Transvaginal 3D ultrasound
+P0002,Endometrium approximately 0.8 cm thick,
+```
+
+Do not wrap all of this content in an extra top-level folder. For example, `batch/manifest.csv` leaves no manifest at the ZIP root. Patient directories not listed in the manifest, manifest rows without an exactly named directory, and unsupported files are skipped or reported as validation diagnostics. At most 30 supported images are processed per patient, and all decompressed content together must not exceed 500 MB.
+
+## Tests and Quality Checks
+
+The backend uses standard-library `unittest`, and the frontend uses Vitest. These commands match the repository's current test entry points:
+
+```bash
+cd backend
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+python3 -m compileall -q app tests
+```
+
+```bash
+cd frontend
+npm test -- --run
+npm run build
+npm run lint
+```
+
+Current tests focus on clinical workflows, batch status and filters, judgment concurrency conflicts, unsaved-edit protection, upload interactions, and API behavior. Model performance, DICOM device variation, and hospital network validation still require approved data and the target deployment environment.
+
+## API Overview
+
+Except for login and health, business endpoints require a valid session. Use the running `/docs` page and the [backend guide](backend/README.md) as the complete request/response reference.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/auth/login` | Log in and establish a session |
+| `GET` | `/api/health` | Check service, model, and queue health |
+| `POST` | `/api/predict` | Submit single-case multi-image inference |
+| `GET` | `/api/tasks/{task_id}` | Read single-case task status |
+| `POST` | `/api/predict/batch` | Upload a batch ZIP |
+| `GET` | `/api/batch` | List batch history |
+| `GET` | `/api/batch/{job_id}` | Read batch progress and patient results |
+| `POST` | `/api/batch/{job_id}/cancel` | Cancel an eligible batch |
+| `GET` | `/api/cases` | Search cases |
+| `GET` | `/api/cases/{case_id}` | Read case, image, prediction, and judgment data |
+| `POST` | `/api/cases/{case_id}/judgment` | Create or concurrency-safe update a physician judgment |
+| `GET` | `/api/images/{image_id}` | Get a browser-viewable image/preview |
+| `GET` | `/api/images/{image_id}/original` | Get the original upload |
+| `GET` | `/api/images/{image_id}/gradcam` | Get a Grad-CAM image |
+| `GET` | `/api/cases/{case_id}/report.pdf` | Export a PDF report |
+
+## Deployment and Operations Links
+
+- [Backend development and service guide](backend/README.md)
+- [Frontend development guide](frontend/README.md)
+- [Production deployment](docs/deployment.md)
+- [On-call and incident runbook](docs/runbook.md)
+
+Production should use a controlled host, an HTTPS reverse proxy, strong passwords, `COOKIE_SECURE=true`, backups, and restore drills. Run health, login, and representative clinical-flow checks after upgrades. The linked documents cover systemd, Nginx, Windows NSSM, backup, and restore commands.
+
+## Data, Security, and Hospital Integration Boundaries
+
+- Current storage is single-host SQLite plus local files, not a shared database or object store for multi-node deployment. The deployer owns disk encryption, backup media, retention, deletion procedures, and access review.
+- The system provides password accounts, bcrypt hashes, HttpOnly/SameSite session cookies, failed-login lockout, and audit logs. These controls do not replace hospital identity, endpoint management, network isolation, or security review.
+- **Any currently authenticated physician can view cases and batch jobs in the system.** Department isolation, case-owner permissions, and finer-grained authorization are deferred until formal hospital integration, when they must be aligned with organizational roles and least privilege.
+- This repository does not implement PACS, HIS, EMR, RIS, or hospital SSO integrations, and it makes no claim of medical-device registration, data-compliance certification, or interoperability conformance. Interface mapping, identity federation, de-identification, consent/ethics approval, and hospital acceptance are deployment-project responsibilities.
+- Real patient data must not enter unauthorized development or research environments. Logs, ZIP files, original images, DICOM metadata, PDFs, and backups may all contain sensitive information and require equivalent protection.
+
+## Project Structure
+
+```text
 .
 ├── backend/
-│   ├── app/
-│   │   ├── api/              # API routes
-│   │   │   ├── predict.py    # POST /api/predict (single-case)
-│   │   │   ├── batch.py      # POST /api/predict/batch (batch)
-│   │   │   ├── tasks.py      # GET  /api/tasks/{id}
-│   │   │   ├── cases.py      # Case listing + image serving
-│   │   │   ├── auth.py       # Login / Logout / Change password
-│   │   │   ├── admin.py      # User management + audit logs
-│   │   │   ├── health.py     # Health check
-│   │   │   └── reports.py    # PDF report generation
-│   │   ├── models/
-│   │   │   ├── db.py         # SQLAlchemy models
-│   │   │   └── schemas.py    # Pydantic request/response models
-│   │   ├── services/
-│   │   │   ├── inference.py        # V2 model inference (EfficientNet-B3 + BERT)
-│   │   │   ├── inference_queue.py  # Priority inference queue
-│   │   │   ├── aggregation.py      # Aggregation strategies
-│   │   │   ├── batch_pipeline.py   # Batch job pipeline
-│   │   │   ├── gradcam.py          # Grad-CAM generation
-│   │   │   └── report_pdf.py       # PDF reports
-│   │   ├── utils/
-│   │   │   ├── text.py       # Text cleaning (clean_check_seen/project)
-│   │   │   ├── image.py      # Image loading + DICOM decode
-│   │   │   └── ids.py        # ID generation
-│   │   ├── config.py         # Environment configuration
-│   │   └── main.py           # FastAPI entry point
-│   ├── checkpoints/           # Model weights (.gitignore)
-│   ├── models/                # BERT weights directory (.gitignore)
-│   └── requirements.txt
+│   ├── app/          # FastAPI routes, data models, inference and business services
+│   ├── tests/        # Backend clinical-workflow tests
+│   ├── scripts/      # Initialization and backup scripts
+│   ├── deploy/       # systemd / Windows service configuration
+│   └── data/         # Runtime database and files; protect separately in production
 ├── frontend/
-│   ├── src/
-│   │   ├── api/client.ts     # API client
-│   │   ├── pages/
-│   │   │   ├── Predict.tsx   # Single-case (with exam method dropdown)
-│   │   │   ├── Batch.tsx     # Batch inference
-│   │   │   ├── History.tsx   # History records
-│   │   │   └── CaseDetail.tsx # Case detail (multi-image + Grad-CAM)
-│   │   └── lib/types.ts      # TypeScript type definitions
-│   └── package.json
-└── README_EN.md
+│   └── src/          # React pages, clinical components, API client, and tests
+├── docs/             # Deployment, operations, design, and implementation records
+├── README.md         # Chinese overview
+└── README_EN.md      # English overview
 ```
-
----
-
-## 2. User Manual
-
-### 2.1 Initial Deployment
-
-#### Requirements
-
-| Item | Minimum | Recommended |
-|------|---------|-------------|
-| CPU | 4 cores | 8 cores+ |
-| RAM | 8 GB | 16 GB |
-| Disk | 50 GB SSD | 200 GB SSD |
-
-> EfficientNet-B3 + BERT loading requires ~2 GB RAM; CPU inference ~1.2s/image.
-
-#### Installation (Linux)
-
-```bash
-# 1. Install system dependencies
-sudo apt update && sudo apt install -y python3.10 python3.10-venv sqlite3
-
-# 2. Backend
-cd backend
-python3.10 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Place model weights
-#    - checkpoints/best_single_fold3.pth (EfficientNet-B3 + fusion + classifier EMA)
-#    - models/nlp_corom_sentence-embedding_chinese-base-medical/ (Alibaba Medical BERT)
-
-# 4. Initialize database + admin
-python scripts/init_db.py
-python scripts/init_admin.py --user-id admin --password "YourSecurePassword"
-
-# 5. Build frontend
-cd ../frontend && npm install && npm run build
-
-# 6. Start
-cd ../backend
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-#### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MODEL_CKPT_PATH` | `checkpoints/best_single_fold3.pth` | V2 model weights path |
-| `BERT_PATH` | `models/nlp_corom_sentence-embedding_chinese-base-medical` | Alibaba Medical BERT path |
-| `MAX_IMAGES_PER_CASE` | `30` | Max images per single case |
-| `AGGREGATION_STRATEGY` | `mean` | Strategy: `mean` / `max_severity` / `majority_vote` |
-| `LOG_FORMAT` | `console` | Log format: `json` (production) / `console` |
-| `COOKIE_SECURE` | `false` | Set `true` for HTTPS |
-| `SESSION_LIFETIME_HOURS` | `8` | Session lifetime |
-
-### 2.2 Daily Usage
-
-#### Single-Case Inference
-
-1. Select **Exam Method** from dropdown (default: Transvaginal 3D Ultrasound)
-2. Upload 1~30 ultrasound images
-3. (Optional) Enter patient number and clinical findings text
-4. Click "Submit"
-5. Wait for inference (~1.2s/image), then view:
-   - Patient-level aggregated diagnosis (probability distribution + final class)
-   - Per-image prediction + Grad-CAM heatmap
-
-#### Batch Inference
-
-Upload a ZIP containing `manifest.csv` (columns: `patient_no, clinical_text`, optional column `check_project`) and subdirectories named by `patient_no` with images inside.
-
-### 2.3 API Quick Reference
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/predict` | Single-case (Form: images, clinical_text, check_project, patient_no) |
-| POST | `/api/predict/batch` | Batch inference (ZIP) |
-| GET | `/api/tasks/{task_id}` | Query task status |
-| GET | `/api/cases` | Case list |
-| GET | `/api/cases/{case_id}` | Case detail |
-| GET | `/api/cases/{case_id}/report.pdf` | PDF report |
-| GET | `/api/health` | Health check |
-
----
-
-## 3. Deployment & Operations
-
-### 3.1 Service Management
-
-```bash
-sudo systemctl status ultrasound
-sudo systemctl restart ultrasound
-journalctl -u ultrasound -f
-curl -sS http://127.0.0.1:8000/api/health | jq
-```
-
-### 3.2 Backup
-
-```bash
-# Daily at 3 AM (cron)
-0 3 * * * /opt/ultrasound/backend/scripts/backup.sh
-```
-
-Backs up: SQLite hot backup (`.backup` command) + uploads incremental rsync, 30-day retention.
-
-### 3.3 Troubleshooting
-
-| Symptom | Action |
-|---------|--------|
-| `model_loaded: false` | Check `MODEL_CKPT_PATH` / `BERT_PATH` files exist and are readable |
-| Abnormal predictions | Confirm EMA weights, RGB channel order, BERT CLS without L2 norm |
-| Slow inference / P95 spike | Check if batch job is occupying queue, CPU saturation |
-| SQLite lock | Restart service; WAL + busy_timeout=5000 handles normal concurrency |
-
-### 3.4 Upgrade Procedure
-
-```bash
-sudo systemctl stop ultrasound
-/opt/ultrasound/backend/scripts/backup.sh
-cd /opt/ultrasound && git pull
-cd backend && source venv/bin/activate && pip install -r requirements.txt
-cd ../frontend && npm install && npm run build
-sudo systemctl start ultrasound
-```
-
-Schema migrations are handled automatically by `init_schema()` via `_ensure_legacy_columns()`.
-
----
 
 ## License
 
-This project is for internal hospital use only. Not for commercial use. Model predictions are for reference only and do not constitute clinical diagnosis. Final diagnosis should be made by a licensed physician.
+The repository currently has no separate open-source license file. Under the project's existing terms, it is for internal hospital use only and not for commercial use. Model output is supporting information, not a clinical diagnosis; a licensed physician makes the final diagnosis.

@@ -1,266 +1,201 @@
 # 子宫超声辅助诊断系统
 
-> AI-powered uterine ultrasound diagnosis assistant for clinical use.
+[English](README_EN.md)
 
-[English Version](README_EN.md)
+## 系统定位
 
----
+本项目是面向医院妇科超声场景的临床辅助诊断与研究原型。系统接收患者的多张超声图像和可选临床文本，生成患者级 AI 三分类建议、概率分布与 Grad-CAM 热图，并由医生在工作台中复核后主动保存最终判断。
 
-## 1. 项目介绍
+系统不是自主诊断设备，也不替代医生阅片、鉴别诊断或医院既有诊疗流程。模型结果仅是辅助信息，最终判断及后续处置由执业医师负责。
 
-### 1.1 概述
+## 临床工作流
 
-子宫超声辅助诊断系统是一个面向医院妇科超声检查的 AI 辅助诊断工具。系统接收超声图像（支持 JPEG / PNG / BMP / TIFF / DICOM），通过深度学习模型进行推理，输出三类预测概率：**正常、子宫内膜癌、息肉**。
+### 单例诊断工作台
 
-**V2 模型架构**（当前版本）：
-- **图像编码器**：EfficientNet-B3（1536 维特征，输入 300x300 + ImageNet 归一化）
-- **文本编码器**：阿里达摩院医学 BERT（`nlp_corom_sentence-embedding_chinese-base-medical`，768 维 CLS 向量）
-- **融合方式**：图像主导门控融合（ImageDominantGatedFusion，256 维隐层）
-- **分类器**：512 → 256 → 3（softmax）
-- **训练数据**：10,587 例患者 / 196,255 张图像，5 折交叉验证
-- **推理权重**：EMA 权重（Fold 3，pat_acc=0.8600）
+医生录入患者编号、检查方式和检查所见，可上传 1 至 30 张图像，单个文件最大 50 MB。提交后系统异步执行逐图推理和患者级聚合。病例详情采用三栏工作台：左侧为病例与检查信息，中间为原图/Grad-CAM 阅片区，右侧并列展示 AI 辅助建议和医生最终判断。
 
-系统支持**单例推理**（医生上传 1~30 张图像，逐图推理后聚合为患者级诊断）和**批量推理**（ZIP 上传数十到数百个患者，异步执行，自动排队）。
+### 批量推理与连续诊断
 
-### 1.2 核心特性
+医生上传包含多个患者的 ZIP 后，后台按患者串行处理，单例任务可在图像间优先进入推理队列。批量详情页把患者队列和病例工作台放在同一页面，支持“全部 / 未诊断 / 已诊断 / 推理失败”筛选，以及“保存判断”和“保存并下一位”。等待推理或推理失败的患者不属于可诊断病例，不能保存医生判断。
 
-| 特性 | 说明 |
-|------|------|
-| **多模态融合推理** | 图像 + 文本通过门控融合生成联合特征；文本输入为「检查方式 + 检查所见」拼接后整段喂 BERT |
-| **患者维度推理** | 一个患者可上传多张超声图像（最多 30 张），每张独立推理后通过可插拔聚合策略生成患者级诊断 |
-| **优先级推理队列** | 单例任务（priority=0）优先于批量任务（priority=5），医生操作不被批量阻塞 |
-| **异步任务模型** | 提交后立即返回 202 + task_id，前端轮询任务状态，避免请求超时 |
-| **幂等提交** | `idempotency_key` 保证重复提交不会产生重复病例 |
-| **文本预处理** | 与训练管线一致的 `clean_check_seen` / `clean_check_project` 清洗规则 |
-| **批量推理历史** | `/batch/history` 列出所有批量任务，`/batch/:jobId` 展开详情（左侧病人列表带颜色标签 + 右侧逐图详情） |
-| **分类汇总图** | 批量推理完成后展示条状图 + 数字统计（正常/息肉/内膜癌分布） |
-| **多维度检索** | 历史记录支持关键词搜索、日历日期选择、预测类别、来源（单例/批量）筛选 |
-| **bcrypt 认证** | HttpOnly + SameSite 会话 cookie，连续失败锁定，支持强制改密 |
-| **审计日志** | 登录 / 登出 / 创建病例 / 用户管理等操作全量记录，支持 CSV 导出 |
-| **DICOM 支持** | 自动检测 DICOM 文件，窗宽窗位调整后转为 RGB 预览 |
-| **Grad-CAM** | 对 EfficientNet-B3 最后卷积层生成热力图，辅助医生理解模型关注区域 |
-| **PDF 报告** | 使用 reportlab 生成中文 PDF 诊断报告 |
-| **结构化日志** | structlog JSON 输出 + request_id 全链路穿透 |
+### 医生判断与责任边界
 
-### 1.3 技术栈
+模型类别固定为 `normal`、`polyp`、`endometrial_cancer`。医生不能被动接受模型结果，必须主动选择并保存 `normal`、`polyp`、`endometrial_cancer` 或 `indeterminate`（无法判断 / 需进一步检查）之一，可同时记录处置建议和备注。
 
-**后端**
-- Python 3.10 + FastAPI + Uvicorn
-- SQLAlchemy 2.x + SQLite（WAL 模式）
-- PyTorch（CPU 推理）+ torchvision + Transformers（BERT）
-- bcrypt + structlog + reportlab + pydicom
+更新已有判断时，客户端提交 `expected_judged_at` 时间戳。若其他医生已先行修改，服务返回 `JUDGMENT_CONFLICT`；当前编辑内容会保留，医生应刷新最新判断、复核后再提交。这是基于时间戳的乐观并发控制，不是病例锁定。
 
-**前端**
-- React 19 + TypeScript 6 + Vite 8
-- Tailwind CSS 4 + lucide-react
-- React Router 6 + React Query (TanStack) + Zustand
-- Axios
+## 模型与推理
 
-**部署**
-- Linux: systemd 服务 + Nginx 反代（可选 HTTPS）
-- Windows: NSSM 服务管理
+- 图像编码器：EfficientNet-B3，输入缩放到 300 x 300 并使用 ImageNet 归一化。
+- 文本编码器：阿里中文医学 BERT `nlp_corom_sentence-embedding_chinese-base-medical`，使用 CLS 向量；检查方式和检查所见按训练侧规则清洗后拼接。
+- 多模态融合：图像主导门控融合（image-dominant gated fusion）；无文本时使用零文本向量。
+- 患者级输出：先获得逐图三分类概率，再聚合为患者级建议；默认策略为 `mean`，还实现了 `max_severity` 和 `majority_vote`。
+- 可解释性：为逐图预测生成 EfficientNet-B3 最后卷积层的 Grad-CAM 叠加图。
+- 运行方式：当前推理器使用 CPU；模型检查点和 BERT 目录不随仓库分发，须由部署方提供。
 
-### 1.4 推理管线
+模型输出只覆盖训练定义的三类，不表示对其他子宫或附件疾病的排除。研究评估应在目标医院人群上独立验证校准、分层表现、失败样本与分布漂移，不能仅以界面中的置信度代替临床性能评价。
 
-```
-┌──────────────┐     ┌──────────────────┐     ┌───────────────────────────┐
-│  PIL RGB 图像 │────▶│ Resize(300x300)  │────▶│ ToTensor + ImageNet Norm  │
-└──────────────┘     └──────────────────┘     └─────────────┬─────────────┘
-                                                            │ (1, 3, 300, 300)
-┌──────────────┐     ┌──────────────────┐                   ▼
-│  检查方式     │────▶│ clean_check_     │     ┌───────────────────────────┐
-│  检查所见     │     │ project/seen     │────▶│  BERT CLS (1, 768)        │
-└──────────────┘     │ → 拼接 → BERT    │     └─────────────┬─────────────┘
-                     └──────────────────┘                   │
-                                                            ▼
-                     ┌──────────────────────────────────────────────────────┐
-                     │  EfficientNet-B3 ──┐                                 │
-                     │                    ├─▶ ImageDominantGatedFusion(256) │
-                     │  BERT CLS ─────────┘          │                      │
-                     │                               ▼                      │
-                     │               Classifier (512→256→3) → softmax       │
-                     └──────────────────────────────────────────────────────┘
+## 功能概览
+
+| 范围 | 当前能力 |
+| --- | --- |
+| 单例病例 | 多图上传、异步任务状态、患者级聚合、三栏诊断工作台 |
+| 批量任务 | ZIP 校验、进度与历史、任务取消、患者队列、页面内连续诊断 |
+| 医生复核 | 四类最终判断、处置建议、备注、保存/保存并下一位、未保存内容保护、判断冲突检测 |
+| 阅片与输出 | 原图、DICOM 浏览器预览、逐图概率、Grad-CAM、中文 PDF 报告 |
+| 检索 | 按关键词、日期、模型类别、医生和单例/批量来源查询病例 |
+| 管理 | 医生/管理员账号、会话认证、登录锁定、审计日志与 CSV 导出、健康与指标接口 |
+
+支持的图像格式为 JPG、JPEG、PNG、BMP、TIF、TIFF 和 DICOM（`.dcm`）。单例最多 30 张/病例、50 MB/图；批量最多 30 张/患者，ZIP 解压后总量最多 500 MB。
+
+## 技术架构
+
+```text
+React 19 + TypeScript + Vite + TanStack Query
+                    |
+              /api (session cookie)
+                    |
+FastAPI + SQLAlchemy + priority inference queue
+          |                         |
+ SQLite (WAL)             PyTorch / Transformers
+          |                         |
+cases, judgments, audit     EfficientNet-B3 + medical BERT
+          |
+backend/data: uploads, previews, Grad-CAM, batch files
 ```
 
-- **空文本模式**：不填检查所见时，文本向量为 768 维零向量，仅靠图像推理
-- **检查方式**可选：经阴道三维超声（默认）/ 经阴道超声 / 经腹三维超声 / 经腹超声 / 经会阴三维超声
+后端以 FastAPI 提供认证、病例、批量任务、判断、报告和运维接口；推理队列让单例图像任务优先于批量图像任务。SQLite 保存业务数据，上传文件和派生图像保存在本地数据目录。前端使用 React Router 和 TanStack Query 管理路由、服务端状态、轮询及判断版本刷新。
 
-### 1.5 项目结构
+开发细节分别见 [后端说明](backend/README.md) 和 [前端说明](frontend/README.md)。
 
+## 快速开始
+
+需要 Python 3.10+、Node.js/npm，以及以下本地模型文件；也可通过 `MODEL_CKPT_PATH` 和 `BERT_PATH` 指向其他位置：
+
+```text
+backend/checkpoints/best_single_fold3.pth
+backend/models/nlp_corom_sentence-embedding_chinese-base-medical/
 ```
+
+启动后端并创建开发管理员：
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python scripts/init_db.py
+python scripts/init_admin.py --user-id admin --password 'ChangeMe#2026'
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+在另一终端启动前端；Vite 默认把 `/api` 代理到 `http://localhost:8000`：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+访问 `http://localhost:5173`。首次登录后应立即修改初始化密码。FastAPI 交互文档位于 `http://localhost:8000/docs`；若模型文件缺失，服务仍可启动，但健康检查会显示模型未加载，推理任务不能成功。
+
+## 批量 ZIP 格式
+
+ZIP 根目录必须直接包含 UTF-8 编码的 `manifest.csv`，表头包含 `patient_no`、`clinical_text`，可选 `check_project`。每个患者目录必须是 ZIP 根目录的直接子目录，目录名与对应 `patient_no` **完全一致**。
+
+```text
+batch.zip
+├── manifest.csv
+├── P0001/
+│   ├── image-01.jpg
+│   └── image-02.dcm
+└── P0002/
+    └── image-01.png
+```
+
+```csv
+patient_no,clinical_text,check_project
+P0001,子宫前位，宫腔内见偏强回声,经阴道三维超声
+P0002,内膜厚度约 0.8 cm,
+```
+
+不要把上述内容再包在一个额外的顶层目录中。例如 `batch/manifest.csv` 会使服务在 ZIP 根目录找不到清单。清单之外的患者目录、缺少同名目录的清单行以及不支持的文件会被跳过或报告为校验信息。每位患者最多处理 30 张支持格式的图像，全部解压内容合计不得超过 500 MB。
+
+## 测试与质量检查
+
+后端使用标准库 `unittest`，前端使用 Vitest；以下命令与仓库现有测试入口一致：
+
+```bash
+cd backend
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+python3 -m compileall -q app tests
+```
+
+```bash
+cd frontend
+npm test -- --run
+npm run build
+npm run lint
+```
+
+当前测试重点覆盖临床工作流、批量状态与筛选、判断并发冲突、未保存编辑保护、上传交互和 API 行为。涉及模型效果、DICOM 设备差异或医院网络环境的验证仍需使用获批数据和目标部署环境单独完成。
+
+## API 概览
+
+除登录和健康检查外，业务接口均要求有效会话。完整请求/响应模型以运行中的 `/docs` 和 [后端说明](backend/README.md) 为准。
+
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| `POST` | `/api/auth/login` | 登录并建立会话 |
+| `GET` | `/api/health` | 服务、模型与队列健康状态 |
+| `POST` | `/api/predict` | 提交单例多图推理 |
+| `GET` | `/api/tasks/{task_id}` | 查询单例任务状态 |
+| `POST` | `/api/predict/batch` | 上传批量 ZIP |
+| `GET` | `/api/batch` | 查询批量历史 |
+| `GET` | `/api/batch/{job_id}` | 查询批次进度和患者结果 |
+| `POST` | `/api/batch/{job_id}/cancel` | 取消可取消的批次 |
+| `GET` | `/api/cases` | 查询病例列表 |
+| `GET` | `/api/cases/{case_id}` | 获取病例、图像、预测和判断 |
+| `POST` | `/api/cases/{case_id}/judgment` | 创建或并发安全地更新医生判断 |
+| `GET` | `/api/images/{image_id}` | 获取可浏览图像/预览 |
+| `GET` | `/api/images/{image_id}/original` | 获取原始上传文件 |
+| `GET` | `/api/images/{image_id}/gradcam` | 获取 Grad-CAM 图 |
+| `GET` | `/api/cases/{case_id}/report.pdf` | 导出 PDF 报告 |
+
+## 部署与运维入口
+
+- [后端开发与服务说明](backend/README.md)
+- [前端开发说明](frontend/README.md)
+- [生产部署](docs/deployment.md)
+- [值班与故障处理](docs/runbook.md)
+
+生产环境应使用受控主机、HTTPS 反向代理、强密码、`COOKIE_SECURE=true`、备份与恢复演练，并在升级后执行健康检查、登录抽样和临床流程抽样。具体 systemd、Nginx、Windows NSSM、备份和恢复命令见上述文档。
+
+## 数据、安全与医院接入边界
+
+- 当前数据存储是单机 SQLite 与本地文件目录，不是面向多节点部署的共享数据库或对象存储。部署方负责磁盘加密、备份介质、保留期限、删除流程和访问审计。
+- 系统使用账号密码、bcrypt 哈希、HttpOnly/SameSite 会话 cookie、失败锁定和审计日志；这些能力不能替代医院统一身份、终端管理、网络隔离或安全审查。
+- **当前任一已认证医生都可查看系统中的病例和批量任务。** 科室隔离、病例所有者权限和更细粒度授权尚未实现，应在正式医院集成时结合组织、岗位与最小权限策略收紧。
+- 当前仓库未实现 PACS、HIS、EMR、RIS 或医院 SSO 对接，也不声明已满足任何特定医疗器械注册、数据合规认证或互操作标准。接口映射、身份联邦、数据脱敏、知情/伦理审批和院内验收属于部署项目范围。
+- 真实患者数据不得用于未获授权的开发或研究环境。日志、ZIP、原始图像、DICOM 元数据、PDF 和备份均可能包含敏感信息，应按同等级别保护。
+
+## 项目结构
+
+```text
 .
 ├── backend/
-│   ├── app/
-│   │   ├── api/              # API 路由
-│   │   │   ├── predict.py    # POST /api/predict（单例推理）
-│   │   │   ├── batch.py      # POST /api/predict/batch（批量推理）
-│   │   │   ├── tasks.py      # GET  /api/tasks/{id}
-│   │   │   ├── cases.py      # 病历查询 + 图片服务
-│   │   │   ├── auth.py       # 登录 / 登出 / 改密
-│   │   │   ├── admin.py      # 用户管理 + 审计日志 + CSV 导出
-│   │   │   ├── health.py     # 健康检查
-│   │   │   └── reports.py    # PDF 报告生成
-│   │   ├── models/
-│   │   │   ├── db.py         # SQLAlchemy 模型
-│   │   │   └── schemas.py    # Pydantic 请求/响应模型
-│   │   ├── services/
-│   │   │   ├── inference.py        # V2 模型推理（EfficientNet-B3 + BERT）
-│   │   │   ├── inference_queue.py  # 优先级推理队列
-│   │   │   ├── aggregation.py      # 聚合策略
-│   │   │   ├── batch_pipeline.py   # 批量任务流水线
-│   │   │   ├── gradcam.py          # Grad-CAM 生成
-│   │   │   └── report_pdf.py       # PDF 报告
-│   │   ├── utils/
-│   │   │   ├── text.py       # 文本清洗（clean_check_seen/project + build_clinical_text）
-│   │   │   ├── image.py      # 图像加载 + DICOM 解码
-│   │   │   └── ids.py        # ID 生成
-│   │   ├── config.py         # 环境变量配置
-│   │   └── main.py           # FastAPI 应用入口
-│   ├── checkpoints/           # 模型权重（.gitignore）
-│   ├── models/                # BERT 权重目录（.gitignore）
-│   └── requirements.txt
+│   ├── app/          # FastAPI 路由、数据模型、推理与业务服务
+│   ├── tests/        # 后端临床工作流测试
+│   ├── scripts/      # 初始化与备份脚本
+│   ├── deploy/       # systemd / Windows 服务配置
+│   └── data/         # 运行时数据库和文件（生产环境需独立保护）
 ├── frontend/
-│   ├── src/
-│   │   ├── api/client.ts     # API 客户端
-│   │   ├── pages/
-│   │   │   ├── Predict.tsx   # 单例推理页（含检查方式下拉）
-│   │   │   ├── Batch.tsx     # 批量推理页
-│   │   │   ├── History.tsx   # 历史记录
-│   │   │   └── CaseDetail.tsx # 病历详情（多图 + Grad-CAM）
-│   │   └── lib/types.ts      # TypeScript 类型定义
-│   └── package.json
-└── README.md
+│   └── src/          # React 页面、临床组件、API 客户端和测试
+├── docs/             # 部署、运维和设计/实施记录
+├── README.md         # 中文总览
+└── README_EN.md      # English overview
 ```
 
----
+## License
 
-## 2. 操作手册
-
-### 2.1 首次部署
-
-#### 环境准备
-
-| 项目 | 最低配置 | 推荐配置 |
-|------|---------|---------|
-| CPU | 4 核 | 8 核+ |
-| 内存 | 8 GB | 16 GB |
-| 磁盘 | 50 GB SSD | 200 GB SSD |
-
-> EfficientNet-B3 + BERT 首次加载约需 2 GB 内存；CPU 推理约 1.2 秒/图。
-
-#### 安装步骤（Linux）
-
-```bash
-# 1. 安装系统依赖
-sudo apt update && sudo apt install -y python3.10 python3.10-venv sqlite3
-
-# 2. 后端
-cd backend
-python3.10 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. 放置模型权重
-#    - checkpoints/best_single_fold3.pth（EfficientNet-B3 + 融合层 + 分类器 EMA 权重）
-#    - models/nlp_corom_sentence-embedding_chinese-base-medical/（阿里医学 BERT）
-
-# 4. 初始化数据库 + 管理员
-python scripts/init_db.py
-python scripts/init_admin.py --user-id admin --password "YourSecurePassword"
-
-# 5. 构建前端
-cd ../frontend && npm install && npm run build
-
-# 6. 启动
-cd ../backend
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-#### 环境变量
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `MODEL_CKPT_PATH` | `checkpoints/best_single_fold3.pth` | V2 模型权重路径 |
-| `BERT_PATH` | `models/nlp_corom_sentence-embedding_chinese-base-medical` | 阿里医学 BERT 路径 |
-| `MAX_IMAGES_PER_CASE` | `30` | 单例最多图像数 |
-| `AGGREGATION_STRATEGY` | `mean` | 聚合策略：`mean` / `max_severity` / `majority_vote` |
-| `LOG_FORMAT` | `console` | 日志格式：`json`（生产）/ `console` |
-| `COOKIE_SECURE` | `false` | HTTPS 时改为 `true` |
-| `SESSION_LIFETIME_HOURS` | `8` | 会话有效期 |
-
-### 2.2 日常使用
-
-#### 单例推理
-
-1. 在「单例推理」页面选择**检查方式**（下拉，默认「经阴道三维超声」）
-2. 上传 1~30 张超声图像
-3. （可选）填写病历号和检查所见文本
-4. 点击「提交」
-5. 等待推理完成（约 1.2 秒/图），查看：
-   - 患者级聚合诊断（概率分布 + 最终分类）
-   - 逐图预测 + Grad-CAM 热力图
-
-#### 批量推理
-
-上传 ZIP，内含 `manifest.csv`（列：`patient_no, clinical_text`，可选列 `check_project`）和以 `patient_no` 命名的子目录。
-
-### 2.3 API 速览
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/predict` | 单例推理（Form: images, clinical_text, check_project, patient_no） |
-| POST | `/api/predict/batch` | 批量推理（ZIP） |
-| GET | `/api/tasks/{task_id}` | 查询任务状态 |
-| GET | `/api/cases` | 病历列表 |
-| GET | `/api/cases/{case_id}` | 病历详情 |
-| GET | `/api/cases/{case_id}/report.pdf` | PDF 报告 |
-| GET | `/api/health` | 健康检查 |
-
----
-
-## 3. 运行与运维
-
-### 3.1 服务管理
-
-```bash
-sudo systemctl status ultrasound
-sudo systemctl restart ultrasound
-journalctl -u ultrasound -f
-curl -sS http://127.0.0.1:8000/api/health | jq
-```
-
-### 3.2 备份
-
-```bash
-# 每天凌晨 3 点自动备份（cron）
-0 3 * * * /opt/ultrasound/backend/scripts/backup.sh
-```
-
-备份内容：SQLite 热备（`.backup` 命令） + uploads 目录增量 rsync，保留 30 天。
-
-### 3.3 故障排查
-
-| 现象 | 排查 |
-|------|------|
-| `model_loaded: false` | 检查 `MODEL_CKPT_PATH` / `BERT_PATH` 文件是否存在且可读 |
-| 推理结果异常 | 确认使用 EMA 权重、图像通道 RGB、BERT CLS 不做 L2 norm |
-| 推理慢 / P95 飙升 | 查看是否有批量任务占用队列、CPU 是否满载 |
-| SQLite 锁 | 重启服务释放锁；正常 WAL + busy_timeout=5000 已处理并发 |
-
-### 3.4 升级流程
-
-```bash
-sudo systemctl stop ultrasound
-/opt/ultrasound/backend/scripts/backup.sh
-cd /opt/ultrasound && git pull
-cd backend && source venv/bin/activate && pip install -r requirements.txt
-cd ../frontend && npm install && npm run build
-sudo systemctl start ultrasound
-```
-
-数据库 schema 变更由 `init_schema()` 中的 `_ensure_legacy_columns()` 自动处理，无需手动迁移。
-
----
-
-## 许可证
-
-本项目仅供医院内部使用，请勿用于商业用途。模型预测结果仅供参考，不构成临床诊断，最终诊断应由执业医师作出。
+仓库目前未提供独立的开源许可证文件。按项目现有约定，本项目仅供医院内部使用，不得商用；模型输出仅供辅助参考，不构成临床诊断，最终诊断由执业医师作出。
