@@ -28,7 +28,7 @@ When updating an existing judgment, the client submits its `expected_judged_at` 
 
 - Image encoder: EfficientNet-B3; images are resized to 300 x 300 and ImageNet-normalized.
 - Text encoder: Alibaba Chinese medical BERT, `nlp_corom_sentence-embedding_chinese-base-medical`, using its CLS vector; examination method and findings are cleaned with training-aligned rules and concatenated.
-- Multimodal fusion: image-dominant gated fusion; a zero text vector is used when no text is supplied.
+- Multimodal fusion: image-dominant gated fusion; a zero text vector is used only when both the examination method and findings are empty.
 - Patient-level output: per-image three-class probabilities are aggregated into the patient suggestion. The default strategy is `mean`; `max_severity` and `majority_vote` are also implemented.
 - Explainability: Grad-CAM overlays are generated from the final EfficientNet-B3 convolutional layer for per-image predictions.
 - Runtime: the current inferencer runs on CPU. The model checkpoint and BERT directory are not distributed with the repository and must be supplied by the deployer.
@@ -175,7 +175,7 @@ Production should use a controlled host, an HTTPS reverse proxy, strong password
 
 - Current storage is single-host SQLite plus local files, not a shared database or object store for multi-node deployment. The deployer owns disk encryption, backup media, retention, deletion procedures, and access review.
 - The system provides password accounts, bcrypt hashes, HttpOnly/SameSite session cookies, failed-login lockout, and audit logs. These controls do not replace hospital identity, endpoint management, network isolation, or security review.
-- **Any currently authenticated physician can view cases and batch jobs in the system.** Department isolation, case-owner permissions, and finer-grained authorization are deferred until formal hospital integration, when they must be aligned with organizational roles and least privilege.
+- **All currently signed-in physicians share visibility of cases and batch jobs and may create or update a physician judgment for any case (the case must have completed inference); only the batch creator may cancel a batch job.** Department isolation, case-owner permissions, and finer-grained authorization are deferred until formal hospital integration, when they must be aligned with organizational roles and least privilege.
 - This repository does not implement PACS, HIS, EMR, RIS, or hospital SSO integrations, and it makes no claim of medical-device registration, data-compliance certification, or interoperability conformance. Interface mapping, identity federation, de-identification, consent/ethics approval, and hospital acceptance are deployment-project responsibilities.
 - Real patient data must not enter unauthorized development or research environments. Logs, ZIP files, original images, DICOM metadata, PDFs, and backups may all contain sensitive information and require equivalent protection.
 
