@@ -29,7 +29,7 @@ du -sh /opt/ultrasound/backend/data/*
 df -h /opt/ultrasound/backend/data
 ```
 
-`GET /api/metrics` 仅管理员可访问，包含模型状态、推理延迟、队列长度、数据库规模和进程内错误计数。可通过已登录的管理员页面查看，或使用受保护的管理员会话发起请求；不要把会话 Cookie 写入共享脚本或工单。
+管理员的“系统统计”页面当前只显示 `/api/health` 的服务状态、模型状态、队列长度和运行时间。完整的 `GET /api/metrics` 仅管理员可访问，另含推理延迟、数据库规模和进程内错误计数，必须使用受保护的管理员会话直接请求；不要把会话 Cookie 写入共享脚本或工单。
 
 ## 3. 事件处置
 
@@ -46,7 +46,7 @@ df -h /opt/ultrasound/backend/data
 
 1. 在批次详情页手动刷新，记录 `job_id`、当前患者、已完成图像数、患者成功/失败数和错误信息。
 2. 查看 `/api/health` 的 `queue_length`，并由管理员查看 `/api/metrics` 的队列长度和推理延迟。
-3. 用 `request_id`、`job_id` 或患者编号检索服务日志，关注图像推理超时、模型异常和数据库锁。
+3. HTTP 请求期异常和 `response.5xx` 可按响应头中的 `request_id` 检索；后台批次不会保证携带原请求的 `request_id` 或患者编号，应以 `job_id` 和数据库状态为主。批次创建、取消查审计日志，患者处理结果按病例表中的 `patient_no`、`case_id` 和 `batch_job_id` 核对。
 4. 只读核对数据库状态：
 
    ```bash
@@ -172,11 +172,25 @@ python scripts/init_admin.py --user-id admin --password '<一次性强密码>' -
 
 `scripts/backup.sh` 当前备份 `data/app.db` 和 `data/uploads/`，不包含 `previews/`、`gradcam/`。完整恢复演练必须同时覆盖医院另行配置的这些目录备份。
 
+以下示例只能在已经确认与生产入口隔离的测试机执行。不要直接覆盖现有 `app.db`：即使服务已经停止，旧 `app.db-wal`、`app.db-shm` 和旧影像仍可能把演练混入不同恢复点。先整体移走旧 `data/` 作为回退副本，再在干净目录恢复：
+
 ```bash
-# 仅在隔离测试机执行，确保测试服务已停止
-cp /mnt/nas/backups/ultrasound/app-20260701-030000.db data/app.db
-rsync -a /mnt/nas/backups/ultrasound/uploads-latest/ data/uploads/
+# 仅在已确认隔离的测试机执行；这里的 ultrasound 是测试机上的服务实例
+sudo systemctl stop ultrasound
+cd /opt/ultrasound/backend
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+sudo mv data "data-before-restore-${STAMP}"
+sudo install -d -o ultrasound -g ultrasound \
+  data/uploads data/previews data/gradcam data/batch
+sudo install -o ultrasound -g ultrasound -m 0600 \
+  /mnt/nas/backups/ultrasound/app-20260701-030000.db data/app.db
+sudo -u ultrasound rsync -a \
+  /mnt/nas/backups/ultrasound/uploads-latest/ data/uploads/
+sudo chown -R ultrasound:ultrasound data
 ```
+
+若演练要求重复同步到已经使用过的隔离测试目录，只有在再次确认源、目标绝对路径和测试机身份后才能考虑 `rsync --delete`。先执行 `rsync -an --delete ...` 检查删除清单，再执行正式命令；生产目录不得使用该选项。医院另行备份的 `previews/` 与 `gradcam/` 也应按同一恢复点同步，缺少这些备份时不得把演练结论记录为完整恢复成功。
 
 启动测试实例后，验证登录、随机病例详情、原始图像、DICOM 预览、Grad-CAM、医生判断和批次历史。记录恢复点、耗时、缺失文件和验证人，不得将演练数据库接入生产入口。
 
@@ -188,9 +202,9 @@ rsync -a /mnt/nas/backups/ultrasound/uploads-latest/ data/uploads/
 - `startup.stale_batches_marked_failed`：启动时将遗留活动批次标记为失败。
 - `response.5xx`：一次 5xx 响应，包含请求路径、方法和 `request_id`。
 - `unhandled_exception`：未处理异常及堆栈。
-- `audit.*`：登录、用户管理、推理、判断等审计行为。
+- `audit_logs` 表和管理员审计页面：登录、用户管理、推理、判断等审计行为；批次创建和取消可按 `resource_id=job_id` 核对。
 
-所有请求日志都带 `request_id`。排障记录至少包含时间、用户、`request_id`、`case_id` 或 `job_id`、页面现象和是否已重试；不要在工单中粘贴患者完整临床文本或原始影像。
+`request_id` 适合关联 HTTP 请求期日志和 5xx，不保证传入后台批次线程。批次排障以 `job_id`、数据库计数和审计记录为主，患者级问题再通过病例表核对 `patient_no` 与 `case_id`。排障记录至少包含时间、用户、可用的 `request_id`、`case_id` 或 `job_id`、页面现象和是否已重试；不要在工单中粘贴患者完整临床文本或原始影像。
 
 ## 7. 性能抽样
 

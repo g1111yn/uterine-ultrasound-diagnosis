@@ -6,7 +6,7 @@
 
 推理模型提供 `normal`、`polyp`、`endometrial_cancer` 三分类辅助建议；医生最终判断额外支持 `indeterminate`。AI 结果不能替代医生诊断，服务端也不会自动把模型类别保存为医生判断。
 
-除登录和健康检查外，业务接口要求有效会话。当前已登录医生共享查看病例与批量任务；批量任务仅允许提交者取消。科室隔离、病例所有者授权等权限将在正式医院对接时按院方规则收紧，当前代码不应被描述为已经具备这些隔离能力。
+除登录和健康检查外，业务接口要求有效会话。当前任一已登录医生都能查看系统内病例和批量任务，并可为任意已完成患者级推理的病例创建或更新医生判断；批量任务仅允许创建者取消。科室隔离、病例所有者授权等权限将在正式医院对接时按院方规则收紧，当前代码不应被描述为已经具备这些隔离能力。
 
 ## 环境与模型文件
 
@@ -23,7 +23,7 @@ backend/models/nlp_corom_sentence-embedding_chinese-base-medical/
 | --- | --- | --- |
 | `MODEL_CKPT_PATH` | `backend/checkpoints/best_single_fold3.pth` | 单折融合模型权重 |
 | `BERT_PATH` | `backend/models/nlp_corom_sentence-embedding_chinese-base-medical/` | 本地医学 BERT 目录 |
-| `MODEL_FOLD_PATHS` | 空 | 可选，多折权重路径，以逗号分隔 |
+| `MODEL_FOLD_PATHS` | 空 | 当前仅由配置模块解析，推理器尚未接入；设置该变量不会启用多折推理 |
 | `AGGREGATION_STRATEGY` | `mean` | 患者级聚合，可选 `mean`、`max_severity`、`majority_vote` |
 
 启动时会尝试加载模型。模型文件缺失时 Web 服务仍可启动，但 `/api/health` 的 `model_loaded` 为 `false`，推理任务会失败；不能只根据 HTTP 服务存活判断模型可用。

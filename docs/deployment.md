@@ -6,7 +6,7 @@
 
 - 后端使用 FastAPI、SQLite 和本地文件目录，前端构建产物由后端静态托管。
 - 推理模型为 EfficientNet-B3 + 医学 BERT，默认执行患者级 `mean` 聚合。
-- 当前所有已登录医生共享查看病例和批量任务；正式接入医院前，应按院方的科室、岗位和病例归属规则收紧权限。
+- 当前任一已登录医生都能查看病例和批量任务，也能为任意已完成推理的病例创建或更新医生判断；批量任务仅允许创建者取消。正式接入医院前，应按院方的科室、岗位和病例归属规则收紧权限。
 - 不要把模型权重、真实患者数据、生产密码、证书私钥或会话 Cookie 提交到 Git。
 
 ## 2. 资源与软件要求
@@ -49,6 +49,12 @@ sudo chown -R ultrasound:ultrasound /opt/ultrasound
 ```text
 /opt/ultrasound/backend/checkpoints/best_single_fold3.pth
 /opt/ultrasound/backend/models/nlp_corom_sentence-embedding_chinese-base-medical/
+```
+
+代码和模型应由 `ultrasound` 账户部署。若通过 `root`、`scp` 或其他账户落盘，必须在创建虚拟环境和构建前端前再次校正所有权，否则 `ultrasound` 可能无法创建 `venv/`、`node_modules/`、`dist/` 和运行数据目录：
+
+```bash
+sudo chown -R ultrasound:ultrasound /opt/ultrasound
 ```
 
 确认文件存在且运行账户可读：
@@ -146,7 +152,7 @@ journalctl -u ultrasound -n 100 --no-pager
 | `FORCE_HTTPS_REDIRECT` | `false` | 仅在反向代理协议头配置正确后开启 |
 | `MODEL_CKPT_PATH` | `backend/checkpoints/best_single_fold3.pth` | 生产路径见上文 |
 | `BERT_PATH` | `backend/models/nlp_corom_sentence-embedding_chinese-base-medical/` | 生产路径见上文 |
-| `MODEL_FOLD_PATHS` | 空 | 可选，多折权重路径以逗号分隔；未配置时使用单权重 |
+| `MODEL_FOLD_PATHS` | 空 | 当前仅解析该配置，推理器尚未接入多折权重；设置该变量不能启用多折推理 |
 | `AGGREGATION_STRATEGY` | `mean` | 可选 `mean`、`max_severity`、`majority_vote` |
 | `MAX_IMAGES_PER_CASE` | `30` | 单病例最多 30 张 |
 | `MAX_IMAGE_BYTES` | `52428800` | 单图 50 MB |
@@ -181,6 +187,8 @@ server {
     }
 }
 ```
+
+示例中的 `client_max_body_size 600m` 是网关层额外限制，低于后端单病例的理论组合上限（30 个文件 x 50 MB）。医院可以保留更严格的网关限制，但必须把实际可上传总量告知临床用户；若业务确需接近后端理论上限，应在磁盘、请求时长和并发容量验证后相应调高，避免请求在到达 FastAPI 前被 Nginx 拒绝。
 
 确认 HTTPS、反向代理和登录均正常后，再设置：
 

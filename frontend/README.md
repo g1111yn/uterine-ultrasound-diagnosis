@@ -20,14 +20,14 @@
 | 设置 | `/settings` | 查看服务状态、模型版本与模型加载状态 |
 | 管理页面 | `/admin/users`、`/admin/audit-logs`、`/admin/stats` | 管理员维护账号、查审计和看运行统计 |
 
-普通业务页面要求登录，管理页面还要求 `admin` 角色。当前任一已登录医生都能查看系统内病例和批量任务；科室或病例所有者隔离尚未实现，将在医院正式对接时按院方权限模型收紧。
+普通业务页面要求登录，管理页面还要求 `admin` 角色。当前任一已登录医生都能查看系统内病例和批量任务，并可为任意已完成患者级推理的病例创建或更新医生判断；批量任务仅允许创建者取消。科室或病例所有者隔离尚未实现，将在医院正式对接时按院方权限模型收紧。
 
 ## 临床工作台
 
 `ClinicalWorkbench` 统一单例结果、病例详情和批量诊断的三栏布局：
 
 - 左栏放病例/检查信息或批量患者队列。
-- 中栏由 `ImageReviewPanel` 提供多图选择、原图与 Grad-CAM 对照、逐图概率和原始文件入口。
+- 中栏由 `ImageReviewPanel` 提供文件名展示、多图选择、浏览图与 Grad-CAM 对照及逐图概率。
 - 右栏展示 `AiSuggestionPanel` 与 `JudgmentForm`，明确分开 AI 辅助建议和医生最终判断。
 
 医生判断支持 `normal`、`polyp`、`endometrial_cancer`、`indeterminate`，并可填写处置建议和备注。编辑已有判断时，表单把当前 `judged_at` 作为 `expected_judged_at` 提交；后端返回 `JUDGMENT_CONFLICT` 时错误会显示且未保存输入保留，用户应刷新并复核最新版本。
